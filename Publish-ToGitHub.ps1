@@ -133,6 +133,252 @@ function Test-Command {
     $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+function Get-ValidatedProjectPath {
+    $projectPath = $projectBox.Text.Trim()
+    if (-not (Test-Path $projectPath)) { throw "Project folder does not exist." }
+    if ((Split-Path $projectPath -Leaf) -eq ".git") {
+        throw "Choose the main project folder, not the hidden .git folder. Use: C:\Users\Preston W. Robbins\Documents\PNG to SVG Converter"
+    }
+    if (-not (Test-Command "git")) { throw "Git is not installed or is not available in PATH." }
+    $projectPath
+}
+
+function Ensure-GitRepository {
+    param([string]$ProjectPath)
+
+    if (-not (Test-Path (Join-Path $ProjectPath ".git"))) {
+        $result = Invoke-External "git" @("init") $ProjectPath
+        if ($result.ExitCode -ne 0) { throw $result.Output }
+    }
+
+    [void](Invoke-External "git" @("branch", "-M", "main") $ProjectPath)
+}
+
+function Ensure-OriginRemote {
+    param([string]$ProjectPath)
+
+    $repoName = $repoBox.Text.Trim()
+    $owner = $ownerBox.Text.Trim()
+    $remoteUrl = $remoteBox.Text.Trim()
+
+    if ([string]::IsNullOrWhiteSpace($remoteUrl)) {
+        if ([string]::IsNullOrWhiteSpace($owner)) { throw "Enter either GitHub owner or existing remote URL." }
+        if ([string]::IsNullOrWhiteSpace($repoName)) { throw "Repository name is required." }
+        $remoteUrl = "https://github.com/$owner/$repoName.git"
+    }
+
+    $currentRemote = Invoke-External "git" @("remote", "get-url", "origin") $ProjectPath
+    if ($currentRemote.ExitCode -eq 0) {
+        $result = Invoke-External "git" @("remote", "set-url", "origin", $remoteUrl) $ProjectPath
+    } else {
+        $result = Invoke-External "git" @("remote", "add", "origin", $remoteUrl) $ProjectPath
+    }
+    if ($result.ExitCode -ne 0) { throw $result.Output }
+
+    $remoteUrl
+}
+
+function Convert-GitPathToLocalPath {
+    param(
+        [string]$ProjectPath,
+        [string]$GitPath
+    )
+
+    $parts = $GitPath -split "/"
+    $localPath = $ProjectPath
+    foreach ($part in $parts) {
+        if (-not [string]::IsNullOrWhiteSpace($part)) {
+            $localPath = Join-Path $localPath $part
+        }
+    }
+    $localPath
+}
+
+function Get-StatusPath {
+    param([string]$Line)
+
+    if ($Line.Length -lt 4) { return $null }
+    $path = $Line.Substring(3).Trim()
+    if ($path -match " -> ") {
+        $path = ($path -split " -> ")[-1].Trim()
+    }
+    $path.Trim('"')
+}
+
+function Get-SelectedSyncFiles {
+    $files = @()
+    foreach ($item in $syncFileList.CheckedItems) {
+        $files += [string]$item
+    }
+    $files
+}
+
+function Get-RemoteFileTimestamp {
+    param(
+        [string]$ProjectPath,
+        [string]$GitPath
+    )
+
+    $result = Invoke-External "git" @("log", "-1", "--format=%ct", "origin/main", "--", $GitPath) $ProjectPath
+    if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.Output)) { return $null }
+    [DateTimeOffset]::FromUnixTimeSeconds([int64]$result.Output.Trim()).UtcDateTime
+}
+
+function Get-SmartSyncDirection {
+    param(
+        [string]$ProjectPath,
+        [string]$GitPath
+    )
+
+    $localPath = Convert-GitPathToLocalPath $ProjectPath $GitPath
+    $localExists = Test-Path $localPath
+    $remoteTime = Get-RemoteFileTimestamp $ProjectPath $GitPath
+
+    if ($localExists -and $null -eq $remoteTime) { return "Push" }
+    if ((-not $localExists) -and $null -ne $remoteTime) { return "Pull" }
+    if ((-not $localExists) -and $null -eq $remoteTime) { return "Skip" }
+
+    $localTime = (Get-Item $localPath).LastWriteTimeUtc
+    if ($localTime -ge $remoteTime) { "Push" } else { "Pull" }
+}
+
+function Refresh-SyncFileList {
+    try {
+        $syncFileList.Items.Clear()
+        $projectPath = Get-ValidatedProjectPath
+        Ensure-GitRepository $projectPath
+        [void](Ensure-OriginRemote $projectPath)
+
+        Write-Log "Fetching latest file list from GitHub..."
+        $fetch = Invoke-External "git" @("fetch", "origin", "main") $projectPath
+        if ($fetch.ExitCode -ne 0) { throw $fetch.Output }
+
+        $paths = New-Object System.Collections.Generic.HashSet[string]
+
+        $status = Invoke-External "git" @("status", "--porcelain", "--untracked-files=all") $projectPath
+        if ($status.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($status.Output)) {
+            foreach ($line in ($status.Output -split "`r?`n")) {
+                $path = Get-StatusPath $line
+                if (-not [string]::IsNullOrWhiteSpace($path)) { [void]$paths.Add($path) }
+            }
+        }
+
+        foreach ($direction in @("HEAD..origin/main", "origin/main..HEAD")) {
+            $diff = Invoke-External "git" @("diff", "--name-only", $direction) $projectPath
+            if ($diff.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($diff.Output)) {
+                foreach ($path in ($diff.Output -split "`r?`n")) {
+                    if (-not [string]::IsNullOrWhiteSpace($path)) { [void]$paths.Add($path.Trim()) }
+                }
+            }
+        }
+
+        $sortedPaths = @($paths) | Sort-Object
+        foreach ($path in $sortedPaths) {
+            [void]$syncFileList.Items.Add($path, $true)
+        }
+
+        if ($syncFileList.Items.Count -eq 0) {
+            Write-Log "No file differences found between local project and GitHub."
+        } else {
+            Write-Log "Found $($syncFileList.Items.Count) file(s) available for sync."
+        }
+    } catch {
+        Write-Log "Refresh failed."
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Refresh failed")
+    }
+}
+
+function Sync-SelectedFiles {
+    try {
+        $syncButton.Enabled = $false
+        $refreshFilesButton.Enabled = $false
+
+        $projectPath = Get-ValidatedProjectPath
+        Ensure-GitRepository $projectPath
+        [void](Ensure-OriginRemote $projectPath)
+
+        $selectedFiles = Get-SelectedSyncFiles
+        if ($selectedFiles.Count -eq 0) { throw "Select at least one file to sync." }
+
+        Write-Log "Fetching latest from GitHub..."
+        $fetch = Invoke-External "git" @("fetch", "origin", "main") $projectPath
+        if ($fetch.ExitCode -ne 0) { throw $fetch.Output }
+
+        $filesToPush = @()
+        $filesToPull = @()
+
+        foreach ($file in $selectedFiles) {
+            if ($overrideNewestCheck.Checked -and $forcePullRadio.Checked) {
+                $filesToPull += $file
+            } elseif ($overrideNewestCheck.Checked -and $forcePushRadio.Checked) {
+                $filesToPush += $file
+            } else {
+                $direction = Get-SmartSyncDirection $projectPath $file
+                if ($direction -eq "Push") { $filesToPush += $file }
+                if ($direction -eq "Pull") { $filesToPull += $file }
+            }
+        }
+
+        if ($filesToPull.Count -gt 0) {
+            $confirmPull = [System.Windows.Forms.MessageBox]::Show(
+                "This will replace $($filesToPull.Count) selected local file(s) with the GitHub copy. Continue?",
+                "Confirm pull from GitHub",
+                [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Warning
+            )
+            if ($confirmPull -ne [System.Windows.Forms.DialogResult]::Yes) {
+                Write-Log "Sync canceled."
+                return
+            }
+        }
+
+        if ($filesToPull.Count -gt 0) {
+            Write-Log "Pulling $($filesToPull.Count) selected file(s) from GitHub..."
+            $args = @("checkout", "origin/main", "--") + $filesToPull
+            $pullResult = Invoke-External "git" $args $projectPath
+            if ($pullResult.ExitCode -ne 0) { throw $pullResult.Output }
+        }
+
+        if ($filesToPush.Count -gt 0) {
+            $commitMessage = $commitBox.Text.Trim()
+            if ([string]::IsNullOrWhiteSpace($commitMessage)) { throw "Commit message is required when pushing files." }
+
+            Write-Log "Staging $($filesToPush.Count) selected file(s)..."
+            $addArgs = @("add", "--") + $filesToPush
+            $addResult = Invoke-External "git" $addArgs $projectPath
+            if ($addResult.ExitCode -ne 0) { throw $addResult.Output }
+
+            Write-Log "Creating sync commit..."
+            $commitResult = Invoke-External "git" @("commit", "-m", $commitMessage) $projectPath
+            if ($commitResult.ExitCode -ne 0) {
+                if ($commitResult.Output -match "nothing to commit|no changes added|working tree clean") {
+                    Write-Log "No selected file changes to commit. Continuing..."
+                } else {
+                    throw $commitResult.Output
+                }
+            }
+
+            Write-Log "Pushing selected file changes to GitHub..."
+            $pushResult = Invoke-External "git" @("push", "-u", "origin", "main") $projectPath
+            if ($pushResult.ExitCode -ne 0) { throw $pushResult.Output }
+        }
+
+        if ($filesToPush.Count -eq 0 -and $filesToPull.Count -eq 0) {
+            Write-Log "Selected files are already in sync."
+        } else {
+            Write-Log "Sync complete. Pushed $($filesToPush.Count), pulled $($filesToPull.Count)."
+        }
+
+        Refresh-SyncFileList
+    } catch {
+        Write-Log "Sync failed."
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Sync failed")
+    } finally {
+        $syncButton.Enabled = $true
+        $refreshFilesButton.Enabled = $true
+    }
+}
+
 function Show-HelpDialog {
     $helpForm = New-Object System.Windows.Forms.Form
     $helpForm.Text = "GitHub Publisher Help"
@@ -201,6 +447,16 @@ function Show-HelpDialog {
     & $addHelpLine "Public / Private" $fontBold $colors.Ink 0
     & $addHelpLine "Only used when creating a new GitHub repository. Public means anyone can view it. Private means only you and invited collaborators can view it." $font $colors.Muted 10
 
+    & $addHelpLine "Sync Selected Files" $fontSection $colors.Accent 4
+    & $addHelpLine "Refresh files" $fontBold $colors.Ink 0
+    & $addHelpLine "Checks GitHub and your local folder, then lists files that are different or not yet tracked." $font $colors.Muted 6
+    & $addHelpLine "Newest wins" $fontBold $colors.Ink 0
+    & $addHelpLine "Compares your local file modified time with the latest GitHub commit time for that file. The newer copy is used." $font $colors.Muted 6
+    & $addHelpLine "Override newest" $fontBold $colors.Ink 0
+    & $addHelpLine "Lets you force the selected files to push up to GitHub or pull down from GitHub, even if that copy is older. Use this carefully." $font $colors.Muted 6
+    & $addHelpLine "File checklist" $fontBold $colors.Ink 0
+    & $addHelpLine "Only checked files are synced. Uncheck files you want to leave alone." $font $colors.Muted 10
+
     & $addHelpLine "Requirements" $fontSection $colors.Accent 4
     & $addHelpLine "Git must be installed and available in PowerShell." $font $colors.Ink 4
     & $addHelpLine "GitHub CLI is only needed if you want the form to create new repositories. To set it up, open PowerShell and run:" $font $colors.Ink 0
@@ -217,9 +473,9 @@ function Show-HelpDialog {
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "Publish Project to GitHub"
-$form.Size = New-Object System.Drawing.Size(820, 720)
+$form.Size = New-Object System.Drawing.Size(830, 900)
 $form.StartPosition = "CenterScreen"
-$form.MinimumSize = New-Object System.Drawing.Size(820, 720)
+$form.MinimumSize = New-Object System.Drawing.Size(820, 900)
 $form.BackColor = $colors.Background
 $form.Font = $font
 
@@ -268,34 +524,87 @@ $optionsHeader.ForeColor = $colors.Ink
 $createRepoCheck = New-Object System.Windows.Forms.CheckBox
 $createRepoCheck.Text = "Create new GitHub repository if needed"
 $createRepoCheck.Location = New-Object System.Drawing.Point(18, 42)
-$createRepoCheck.Size = New-Object System.Drawing.Size(285, 24)
+$createRepoCheck.Size = New-Object System.Drawing.Size(280, 24)
 $createRepoCheck.Font = $font
 $createRepoCheck.ForeColor = $colors.Ink
 $createRepoCheck.BackColor = $colors.Card
 $publicRadio = New-Object System.Windows.Forms.RadioButton
 $publicRadio.Text = "Public"
-$publicRadio.Location = New-Object System.Drawing.Point(330, 42)
+$publicRadio.Location = New-Object System.Drawing.Point(315, 42)
 $publicRadio.Size = New-Object System.Drawing.Size(80, 24)
 $publicRadio.Checked = $true
 $publicRadio.BackColor = $colors.Card
 $privateRadio = New-Object System.Windows.Forms.RadioButton
 $privateRadio.Text = "Private"
-$privateRadio.Location = New-Object System.Drawing.Point(420, 42)
+$privateRadio.Location = New-Object System.Drawing.Point(395, 42)
 $privateRadio.Size = New-Object System.Drawing.Size(90, 24)
 $privateRadio.BackColor = $colors.Card
-$ghHint = New-Label "Repo creation requires GitHub CLI: gh auth login" 520 44 210 22
+$ghHint = New-Label "Repo creation requires GitHub CLI: gh auth login" 490 44 240 22
 $optionsCard.Controls.AddRange(@($optionsHeader, $createRepoCheck, $publicRadio, $privateRadio, $ghHint))
 
-$publishButton = New-Button "Publish to GitHub" 24 590 170 38 $true
+$syncCard = New-Card 24 586 750 190
+$syncHeader = New-Label "Sync Selected Files" 18 12 180 24 $true
+$syncHeader.ForeColor = $colors.Ink
+$syncHint = New-Label "Refresh the list, select files, then sync by newest file or force push/pull with override." 18 36 700 22
+
+$refreshFilesButton = New-Button "Refresh Files" 18 66 126 30 $false
+$syncButton = New-Button "Sync Selected" 154 66 132 30 $true
+
+$newestRadio = New-Object System.Windows.Forms.RadioButton
+$newestRadio.Text = "Newest wins"
+$newestRadio.Location = New-Object System.Drawing.Point(306, 68)
+$newestRadio.Size = New-Object System.Drawing.Size(110, 24)
+$newestRadio.Checked = $true
+$newestRadio.BackColor = $colors.Card
+$newestRadio.ForeColor = $colors.Ink
+
+$forcePushRadio = New-Object System.Windows.Forms.RadioButton
+$forcePushRadio.Text = "Force push"
+$forcePushRadio.Location = New-Object System.Drawing.Point(420, 68)
+$forcePushRadio.Size = New-Object System.Drawing.Size(100, 24)
+$forcePushRadio.BackColor = $colors.Card
+$forcePushRadio.ForeColor = $colors.Ink
+
+$forcePullRadio = New-Object System.Windows.Forms.RadioButton
+$forcePullRadio.Text = "Force pull"
+$forcePullRadio.Location = New-Object System.Drawing.Point(524, 68)
+$forcePullRadio.Size = New-Object System.Drawing.Size(95, 24)
+$forcePullRadio.BackColor = $colors.Card
+$forcePullRadio.ForeColor = $colors.Ink
+
+$overrideNewestCheck = New-Object System.Windows.Forms.CheckBox
+$overrideNewestCheck.Text = "Override newest"
+$overrideNewestCheck.Location = New-Object System.Drawing.Point(624, 68)
+$overrideNewestCheck.Size = New-Object System.Drawing.Size(120, 24)
+$overrideNewestCheck.Font = $font
+$overrideNewestCheck.ForeColor = $colors.Ink
+$overrideNewestCheck.BackColor = $colors.Card
+
+$syncFileList = New-Object System.Windows.Forms.CheckedListBox
+$syncFileList.Location = New-Object System.Drawing.Point(18, 106)
+$syncFileList.Size = New-Object System.Drawing.Size(702, 68)
+$syncFileList.CheckOnClick = $true
+$syncFileList.BorderStyle = "FixedSingle"
+$syncFileList.BackColor = [System.Drawing.Color]::FromArgb(251, 252, 252)
+$syncFileList.ForeColor = $colors.Ink
+$syncFileList.Font = $font
+
+$syncCard.Controls.AddRange(@(
+    $syncHeader, $syncHint, $refreshFilesButton, $syncButton,
+    $newestRadio, $forcePushRadio, $forcePullRadio, $overrideNewestCheck,
+    $syncFileList
+))
+
+$publishButton = New-Button "Publish to GitHub" 24 796 170 38 $true
 $statusLabel = New-Object System.Windows.Forms.Label
 $statusLabel.Text = "Ready"
-$statusLabel.Location = New-Object System.Drawing.Point(210, 598)
+$statusLabel.Location = New-Object System.Drawing.Point(210, 804)
 $statusLabel.Size = New-Object System.Drawing.Size(560, 24)
 $statusLabel.ForeColor = $colors.Muted
 $statusLabel.Font = $font
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(24, 640)
+$logBox.Location = New-Object System.Drawing.Point(24, 846)
 $logBox.Size = New-Object System.Drawing.Size(750, 26)
 $logBox.Multiline = $false
 $logBox.ReadOnly = $true
@@ -325,32 +634,34 @@ $browseButton.Add_Click({
     }
 })
 
+$refreshFilesButton.Add_Click({ Refresh-SyncFileList })
+$syncButton.Add_Click({ Sync-SelectedFiles })
+$newestRadio.Add_CheckedChanged({
+    if ($newestRadio.Checked) { $overrideNewestCheck.Checked = $false }
+})
+$forcePushRadio.Add_CheckedChanged({
+    if ($forcePushRadio.Checked) { $overrideNewestCheck.Checked = $true }
+})
+$forcePullRadio.Add_CheckedChanged({
+    if ($forcePullRadio.Checked) { $overrideNewestCheck.Checked = $true }
+})
+
 $publishButton.Add_Click({
     try {
         $publishButton.Enabled = $false
         Write-Log "Starting publish..."
 
-        $projectPath = $projectBox.Text.Trim()
+        $projectPath = Get-ValidatedProjectPath
         $repoName = $repoBox.Text.Trim()
         $owner = $ownerBox.Text.Trim()
         $commitMessage = $commitBox.Text.Trim()
         $remoteUrl = $remoteBox.Text.Trim()
 
-        if (-not (Test-Path $projectPath)) { throw "Project folder does not exist." }
-        if ((Split-Path $projectPath -Leaf) -eq ".git") {
-            throw "Choose the main project folder, not the hidden .git folder. Use: C:\Users\Preston W. Robbins\Documents\PNG to SVG Converter"
-        }
         if ([string]::IsNullOrWhiteSpace($repoName)) { throw "Repository name is required." }
         if ([string]::IsNullOrWhiteSpace($commitMessage)) { throw "Commit message is required." }
-        if (-not (Test-Command "git")) { throw "Git is not installed or is not available in PATH." }
 
         Write-Log "Checking Git repository..."
-        if (-not (Test-Path (Join-Path $projectPath ".git"))) {
-            $result = Invoke-External "git" @("init") $projectPath
-            if ($result.ExitCode -ne 0) { throw $result.Output }
-        }
-
-        [void](Invoke-External "git" @("branch", "-M", "main") $projectPath)
+        Ensure-GitRepository $projectPath
 
         Write-Log "Staging files..."
         $result = Invoke-External "git" @("add", "-A") $projectPath
@@ -383,13 +694,7 @@ $publishButton.Add_Click({
             }
 
             Write-Log "Configuring remote..."
-            $currentRemote = Invoke-External "git" @("remote", "get-url", "origin") $projectPath
-            if ($currentRemote.ExitCode -eq 0) {
-                $result = Invoke-External "git" @("remote", "set-url", "origin", $remoteUrl) $projectPath
-            } else {
-                $result = Invoke-External "git" @("remote", "add", "origin", $remoteUrl) $projectPath
-            }
-            if ($result.ExitCode -ne 0) { throw $result.Output }
+            [void](Ensure-OriginRemote $projectPath)
 
             Write-Log "Pushing to GitHub..."
             $result = Invoke-External "git" @("push", "-u", "origin", "main") $projectPath
@@ -408,7 +713,7 @@ $publishButton.Add_Click({
 
 $form.Controls.AddRange(@(
     $titleLabel, $subtitleLabel, $helpButton,
-    $projectCard, $repoCard, $optionsCard,
+    $projectCard, $repoCard, $optionsCard, $syncCard,
     $publishButton, $statusLabel, $logBox
 ))
 
