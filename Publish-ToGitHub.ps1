@@ -473,7 +473,7 @@ function Show-HelpDialog {
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "Publish Project to GitHub"
-$form.Size = New-Object System.Drawing.Size(830, 900)
+$form.Size = New-Object System.Drawing.Size(830, 920)
 $form.StartPosition = "CenterScreen"
 $form.MinimumSize = New-Object System.Drawing.Size(820, 900)
 $form.BackColor = $colors.Background
