@@ -11,7 +11,6 @@ $colors = @{
     Line       = [System.Drawing.Color]::FromArgb(207, 216, 220)
     Accent     = [System.Drawing.Color]::FromArgb(23, 107, 91)
     AccentDark = [System.Drawing.Color]::FromArgb(13, 76, 65)
-    Soft       = [System.Drawing.Color]::FromArgb(234, 245, 242)
 }
 
 $font = New-Object System.Drawing.Font("Segoe UI", 9)
@@ -89,6 +88,18 @@ function New-Card {
     $panel
 }
 
+function Join-Arguments {
+    param([string[]]$Arguments)
+
+    ($Arguments | ForEach-Object {
+        if ($_ -match '[\s"]') {
+            '"' + ($_ -replace '"', '\"') + '"'
+        } else {
+            $_
+        }
+    }) -join " "
+}
+
 function Invoke-External {
     param(
         [string]$FileName,
@@ -115,18 +126,6 @@ function Invoke-External {
         ExitCode = $process.ExitCode
         Output   = ($stdout + $stderr).Trim()
     }
-}
-
-function Join-Arguments {
-    param([string[]]$Arguments)
-
-    ($Arguments | ForEach-Object {
-        if ($_ -match '[\s"]') {
-            '"' + ($_ -replace '"', '\"') + '"'
-        } else {
-            $_
-        }
-    }) -join " "
 }
 
 function Test-Command {
@@ -181,7 +180,7 @@ function Show-HelpDialog {
 
     & $addHelpLine "Required Fields" $fontSection $colors.Accent 4
     & $addHelpLine "Project folder" $fontBold $colors.Ink 0
-    & $addHelpLine "The local folder that contains your app or project files. If the folder is not already a Git repository, this form will run git init for you." $font $colors.Muted 6
+    & $addHelpLine "The local folder that contains your app or project files. Choose the main project folder, not the hidden .git folder." $font $colors.Muted 6
     & $addHelpLine "Repository name" $fontBold $colors.Ink 0
     & $addHelpLine "The GitHub repository name, such as PNG_To_SVG_Converter or My_New_App. Avoid spaces. Use dashes, underscores, letters, and numbers." $font $colors.Muted 6
     & $addHelpLine "Commit message" $fontBold $colors.Ink 0
