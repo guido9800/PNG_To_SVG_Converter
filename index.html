@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PNG to SVG Converter</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local PNG vectorizer</p>
+          <h1>PNG to SVG Converter</h1>
+        </div>
+        <div class="actions">
+          <button id="previewBtn" class="icon-button" type="button" disabled title="Preview downloaded SVG">
+            <span aria-hidden="true">o</span>
+            <span>Preview</span>
+          </button>
+          <button id="copyBtn" class="icon-button" type="button" disabled title="Copy SVG">
+            <span aria-hidden="true">[]</span>
+            <span>Copy</span>
+          </button>
+          <button id="downloadBtn" class="primary-button" type="button" disabled title="Download SVG">
+            <span aria-hidden="true">v</span>
+            <span>Download</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <aside class="panel controls">
+          <label id="dropZone" class="drop-zone" for="fileInput">
+            <input id="fileInput" type="file" accept="image/png">
+            <span class="drop-icon" aria-hidden="true">+</span>
+            <strong>Drop a PNG here</strong>
+            <span>or choose a file from your computer</span>
+          </label>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="mode">Conversion mode</label>
+              <button id="modeInfoBtn" class="info-button" type="button" aria-haspopup="dialog" aria-controls="modeInfoDialog" title="Conversion mode help">?</button>
+            </div>
+            <select id="mode">
+              <option value="photo-line">Photo to line art</option>
+              <option value="smooth-bw">Smooth black/white trace</option>
+              <option value="vector">Optimized vector trace</option>
+              <option value="embedded">Exact embedded SVG</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="maxSize">Render detail</label>
+              <button class="info-button control-help" type="button" data-help="maxSize" title="Render detail help">?</button>
+              <output id="maxSizeValue" for="maxSize">Original size</output>
+            </div>
+            <input id="maxSize" type="range" min="128" max="8192" step="32" value="8192">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="dpi">Output DPI</label>
+              <button class="info-button control-help" type="button" data-help="dpi" title="Output DPI help">?</button>
+              <output id="dpiValue" for="dpi">300 DPI</output>
+            </div>
+            <input id="dpi" type="range" min="254" max="300" step="1" value="300">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="physicalWidth">Physical size</label>
+              <button class="info-button control-help" type="button" data-help="physicalSize" title="Physical size help">?</button>
+              <output id="sizeValue">Auto</output>
+            </div>
+            <div class="size-grid">
+              <label>
+                <span>W in</span>
+                <input id="physicalWidth" type="number" min="0.01" step="0.001" inputmode="decimal">
+              </label>
+              <label>
+                <span>H in</span>
+                <input id="physicalHeight" type="number" min="0.01" step="0.001" inputmode="decimal">
+              </label>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="colors">Color palette</label>
+              <button class="info-button control-help" type="button" data-help="colors" title="Color palette help">?</button>
+              <output id="colorsValue" for="colors">16 colors</output>
+            </div>
+            <input id="colors" type="range" min="2" max="256" step="1" value="16">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="smoothness">Edge smoothing</label>
+              <button class="info-button control-help" type="button" data-help="smoothness" title="Edge smoothing help">?</button>
+              <output id="smoothnessValue" for="smoothness">0 px</output>
+            </div>
+            <input id="smoothness" type="range" min="0" max="3" step="0.25" value="0">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="photoContrast">Photo contrast</label>
+              <button class="info-button control-help" type="button" data-help="photoContrast" title="Photo contrast help">?</button>
+              <output id="photoContrastValue" for="photoContrast">140%</output>
+            </div>
+            <input id="photoContrast" type="range" min="60" max="260" step="5" value="140">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="edgeSensitivity">Edge sensitivity</label>
+              <button class="info-button control-help" type="button" data-help="edgeSensitivity" title="Edge sensitivity help">?</button>
+              <output id="edgeSensitivityValue" for="edgeSensitivity">58</output>
+            </div>
+            <input id="edgeSensitivity" type="range" min="8" max="180" step="1" value="58">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="lineWeight">Line weight</label>
+              <button class="info-button control-help" type="button" data-help="lineWeight" title="Line weight help">?</button>
+              <output id="lineWeightValue" for="lineWeight">1 px</output>
+            </div>
+            <input id="lineWeight" type="range" min="1" max="6" step="1" value="1">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="threshold">B/W threshold</label>
+              <button class="info-button control-help" type="button" data-help="threshold" title="B/W threshold help">?</button>
+              <output id="thresholdValue" for="threshold">128</output>
+            </div>
+            <input id="threshold" type="range" min="0" max="255" step="1" value="128">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="simplify">Path simplification</label>
+              <button class="info-button control-help" type="button" data-help="simplify" title="Path simplification help">?</button>
+              <output id="simplifyValue" for="simplify">1 px</output>
+            </div>
+            <input id="simplify" type="range" min="0" max="6" step="0.25" value="1">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="cornerSmoothing">Corner smoothing</label>
+              <button class="info-button control-help" type="button" data-help="cornerSmoothing" title="Corner smoothing help">?</button>
+              <output id="cornerSmoothingValue" for="cornerSmoothing">0.75 px</output>
+            </div>
+            <input id="cornerSmoothing" type="range" min="0" max="6" step="0.25" value="0.75">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="minFeature">Speckle removal</label>
+              <button class="info-button control-help" type="button" data-help="minFeature" title="Speckle removal help">?</button>
+              <output id="minFeatureValue" for="minFeature">8 px area</output>
+            </div>
+            <input id="minFeature" type="range" min="0" max="400" step="1" value="8">
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="alpha">Transparency cutoff</label>
+              <button class="info-button control-help" type="button" data-help="alpha" title="Transparency cutoff help">?</button>
+              <output id="alphaValue" for="alpha">12</output>
+            </div>
+            <input id="alpha" type="range" min="0" max="255" step="1" value="12">
+          </div>
+
+          <label class="check-row">
+            <input id="trim" type="checkbox" checked>
+            <span>Trim transparent border</span>
+            <button class="info-button control-help" type="button" data-help="trim" title="Trim transparent border help">?</button>
+          </label>
+
+          <label class="check-row">
+            <input id="background" type="checkbox">
+            <span>Add white background</span>
+            <button class="info-button control-help" type="button" data-help="background" title="Add white background help">?</button>
+          </label>
+
+          <label class="check-row">
+            <input id="invert" type="checkbox">
+            <span>Invert colors</span>
+            <button class="info-button control-help" type="button" data-help="invert" title="Invert colors help">?</button>
+          </label>
+
+          <div class="stats" aria-live="polite">
+            <div>
+              <span>Input</span>
+              <strong id="inputStats">No file</strong>
+            </div>
+            <div>
+              <span>Output</span>
+              <strong id="outputStats">Waiting</strong>
+            </div>
+            <div>
+              <span>Optimization</span>
+              <strong id="shapeStats">Ready</strong>
+            </div>
+          </div>
+        </aside>
+
+        <section class="preview-grid">
+          <article class="preview-panel">
+            <div class="preview-header">
+              <h2>PNG</h2>
+              <span id="fileName">No image loaded</span>
+            </div>
+            <div class="preview-surface checker">
+              <canvas id="sourceCanvas" aria-label="PNG preview"></canvas>
+            </div>
+          </article>
+
+          <article class="preview-panel">
+            <div class="preview-header">
+              <h2>SVG</h2>
+              <span id="status">Choose a PNG to begin</span>
+            </div>
+            <button id="svgPreview" class="preview-surface checker empty preview-button" type="button" disabled>
+              <span>SVG preview will appear here</span>
+            </button>
+          </article>
+
+          <article class="code-panel">
+            <div class="preview-header">
+              <h2>SVG code</h2>
+              <span id="codeSize">0 KB</span>
+            </div>
+            <textarea id="svgCode" spellcheck="false" readonly placeholder="Generated SVG markup"></textarea>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="modeInfoDialog" class="modal">
+      <form method="dialog" class="modal-content">
+        <div class="modal-header">
+          <h2>Conversion Modes</h2>
+          <button class="icon-only" type="submit" aria-label="Close" title="Close">x</button>
+        </div>
+
+        <section class="mode-help">
+          <h3>Photo to line art</h3>
+          <p>Turns color PNGs and photos into high-contrast black line art by converting to grayscale, boosting contrast, detecting image edges, thickening the detected lines, cleaning small artifacts, and tracing those lines as SVG paths.</p>
+          <p><strong>Best for:</strong> photo-style engraving, portraits, product images, and full-color artwork that needs to become mark/no-mark black line art.</p>
+          <p><strong>Tradeoff:</strong> it creates line art, not shaded halftone engraving. Tune Photo contrast and Edge sensitivity before adjusting path smoothing.</p>
+        </section>
+
+        <section class="mode-help">
+          <h3>Smooth black/white trace</h3>
+          <p>Converts the PNG into a black/white mask, traces the outer contours, simplifies the paths, and optionally rounds the corners. This produces smoother laser-ready vector boundaries than pixel-block tracing.</p>
+          <p><strong>Best for:</strong> two-color galvo engraving artwork, logos, silhouettes, text, and clean mark/no-mark graphics.</p>
+          <p><strong>Tradeoff:</strong> it intentionally reduces the artwork to solid black vector shapes, so use another mode for full-color art.</p>
+        </section>
+
+        <section class="mode-help">
+          <h3>Optimized vector trace</h3>
+          <p>Converts the PNG pixels into actual SVG vector shapes. The app reduces the image into a color palette, groups same-color pixel runs, and writes those groups as filled paths.</p>
+          <p><strong>Best for:</strong> galvo laser engraving, black and white artwork, logos, high-contrast graphics, and files that need editable vector geometry.</p>
+          <p><strong>Tradeoff:</strong> very detailed photos can create large SVGs because every color region becomes vector geometry.</p>
+        </section>
+
+        <section class="mode-help">
+          <h3>Exact embedded SVG</h3>
+          <p>Wraps the PNG inside an SVG file without tracing it into editable vector paths. It preserves the original raster image appearance as closely as possible.</p>
+          <p><strong>Best for:</strong> preserving exact visual appearance, previewing DPI and physical sizing, or using software that accepts raster content inside SVG.</p>
+          <p><strong>Tradeoff:</strong> it is still a PNG inside an SVG container, so it is not true vector geometry for cutting or path-based engraving.</p>
+        </section>
+
+        <section class="mode-help recommendation">
+          <h3>Laser engraving recommendation</h3>
+          <p>Use <strong>Photo to line art</strong> for color photos, and <strong>Smooth black/white trace</strong> for clean two-color logos. Keep Output DPI between 254 and 300, then tune the mode-specific threshold or edge controls.</p>
+        </section>
+      </form>
+    </dialog>
+
+    <dialog id="controlHelpDialog" class="modal">
+      <form method="dialog" class="modal-content">
+        <div class="modal-header">
+          <h2 id="controlHelpTitle">Control Help</h2>
+          <button class="icon-only" type="submit" aria-label="Close" title="Close">x</button>
+        </div>
+        <div id="controlHelpBody" class="mode-help"></div>
+      </form>
+    </dialog>
+
+    <dialog id="downloadPreviewDialog" class="modal preview-modal">
+      <form method="dialog" class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h2>Download Preview</h2>
+            <p id="downloadPreviewStats">No SVG loaded</p>
+          </div>
+          <div class="zoom-controls" aria-label="Preview zoom controls">
+            <button id="zoomOutBtn" class="icon-only" type="button" title="Zoom out">-</button>
+            <input id="previewZoom" type="range" min="25" max="400" step="25" value="100" aria-label="Preview zoom">
+            <output id="previewZoomValue" for="previewZoom">100%</output>
+            <button id="zoomInBtn" class="icon-only" type="button" title="Zoom in">+</button>
+            <button id="zoomFitBtn" type="button" title="Fit preview">Fit</button>
+          </div>
+          <button class="icon-only" type="submit" aria-label="Close" title="Close">x</button>
+        </div>
+        <div id="downloadPreviewSurface" class="download-preview-surface checker"></div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
