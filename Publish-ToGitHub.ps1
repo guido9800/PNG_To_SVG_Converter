@@ -524,22 +524,22 @@ $optionsHeader.ForeColor = $colors.Ink
 $createRepoCheck = New-Object System.Windows.Forms.CheckBox
 $createRepoCheck.Text = "Create new GitHub repository if needed"
 $createRepoCheck.Location = New-Object System.Drawing.Point(18, 42)
-$createRepoCheck.Size = New-Object System.Drawing.Size(280, 24)
+$createRepoCheck.Size = New-Object System.Drawing.Size(270, 24)
 $createRepoCheck.Font = $font
 $createRepoCheck.ForeColor = $colors.Ink
 $createRepoCheck.BackColor = $colors.Card
 $publicRadio = New-Object System.Windows.Forms.RadioButton
 $publicRadio.Text = "Public"
-$publicRadio.Location = New-Object System.Drawing.Point(315, 42)
-$publicRadio.Size = New-Object System.Drawing.Size(80, 24)
+$publicRadio.Location = New-Object System.Drawing.Point(300, 42)
+$publicRadio.Size = New-Object System.Drawing.Size(70, 24)
 $publicRadio.Checked = $true
 $publicRadio.BackColor = $colors.Card
 $privateRadio = New-Object System.Windows.Forms.RadioButton
 $privateRadio.Text = "Private"
-$privateRadio.Location = New-Object System.Drawing.Point(395, 42)
+$privateRadio.Location = New-Object System.Drawing.Point(374, 42)
 $privateRadio.Size = New-Object System.Drawing.Size(90, 24)
 $privateRadio.BackColor = $colors.Card
-$ghHint = New-Label "Repo creation requires GitHub CLI: gh auth login" 490 44 240 22
+$ghHint = New-Label "Repo creation requires GitHub CLI: gh auth login" 462 44 270 22
 $optionsCard.Controls.AddRange(@($optionsHeader, $createRepoCheck, $publicRadio, $privateRadio, $ghHint))
 
 $syncCard = New-Card 24 586 750 190
