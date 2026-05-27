@@ -793,12 +793,19 @@ function getOpenAiSizeForRatio(ratio) {
 
 function downloadGeneratedPng() {
   if (!state.generatedPng) return;
+  const fileName = getDownloadFileName("galvo-black-white-engraving.png", ".png", "Name the PNG file before downloading:");
+  if (!fileName) {
+    updateGenerationStatus("Download canceled.");
+    return;
+  }
+
   const anchor = document.createElement("a");
   anchor.href = state.generatedPng;
-  anchor.download = "galvo-black-white-engraving.png";
+  anchor.download = fileName;
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
+  updateGenerationStatus("PNG download started. Your browser will save it to the Downloads folder unless your browser asks where to save files.");
 }
 
 async function sendGeneratedToConverter() {
@@ -883,7 +890,7 @@ function downloadSvg() {
 
   const exportText = prepareSvgForFile(state.svg);
   const blob = new Blob([exportText], { type: "image/svg+xml;charset=utf-8" });
-  const fileName = getDownloadFileName();
+  const fileName = getDownloadFileName(getSuggestedSvgFileName(), ".svg", "Name the SVG file before downloading:");
   if (!fileName) {
     els.status.textContent = "Download canceled";
     return;
@@ -973,15 +980,25 @@ function setPreviewZoom(value) {
   }
 }
 
-function getDownloadFileName() {
+function getSuggestedSvgFileName() {
   const baseName = (state.file?.name || "converted").replace(/\.png$/i, "");
-  const suggested = `${baseName}.svg`;
-  const enteredName = window.prompt("Name the SVG file before downloading:", suggested);
+  return `${baseName}.svg`;
+}
+
+function getDownloadFileName(suggested, extension, message) {
+  const enteredName = window.prompt(message, suggested);
   if (enteredName === null) return "";
 
-  const cleaned = enteredName.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, "-");
+  const cleaned = sanitizeFileName(enteredName.trim());
   if (!cleaned) return suggested;
-  return cleaned.toLowerCase().endsWith(".svg") ? cleaned : `${cleaned}.svg`;
+  return cleaned.toLowerCase().endsWith(extension) ? cleaned : `${cleaned}${extension}`;
+}
+
+function sanitizeFileName(fileName) {
+  return fileName
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/[. ]+$/g, "");
 }
 
 function drawSource(settings) {
