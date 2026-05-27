@@ -22,26 +22,63 @@
       <section class="dashboard-hero">
         <div class="hero-content">
           <p class="eyebrow">Galvo artwork studio</p>
-          <h1>Build laser-ready artwork, then turn it into clean SVG geometry.</h1>
-          <p class="hero-copy">Generate high-contrast black and white engraving art with OpenAI, optimize uploaded PNGs for marking, or convert existing artwork into SVG files sized for galvo laser software.</p>
+          <h1>Professional laser artwork tools for clean galvo engraving.</h1>
+          <p class="hero-copy">Create black and white engraving art with AI, optimize uploaded PNGs for marking, and convert production artwork into SVG files with DPI-aware sizing.</p>
           <div class="hero-actions">
             <button id="heroGeneratorBtn" class="primary-button hero-button" type="button">Build Engraving Image</button>
             <button id="heroConverterBtn" class="hero-secondary" type="button">Convert PNG to SVG</button>
           </div>
           <div class="trust-row" aria-label="Workflow highlights">
-            <span>Black and white engraving prompts</span>
-            <span>DPI-aware SVG export</span>
-            <span>AI PNG optimization</span>
+            <span>AI black and white generation</span>
+            <span>254-300 DPI SVG export</span>
+            <span>PNG cleanup for engraving</span>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="Laser artwork preview">
+          <img src="assets/laser-dashboard-hero.png" alt="Abstract preview of vector paths and laser engraving artwork">
+          <div class="preview-card floating-card card-top">
+            <span>Input</span>
+            <strong>Color PNG / Prompt</strong>
+          </div>
+          <div class="preview-card floating-card card-bottom">
+            <span>Output</span>
+            <strong>Laser-ready SVG</strong>
+          </div>
+          <div class="engrave-sample" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
         </div>
       </section>
 
+      <section class="landing-metrics" aria-label="Production highlights">
+        <div>
+          <strong>2 workflows</strong>
+          <span>AI generation and PNG-to-SVG conversion</span>
+        </div>
+        <div>
+          <strong>300 DPI</strong>
+          <span>Export sizing for high-detail marking</span>
+        </div>
+        <div>
+          <strong>SVG paths</strong>
+          <span>Smoothing, simplification, and preview tools</span>
+        </div>
+      </section>
+
+      <div class="workflow-heading">
+        <p class="eyebrow">Choose your starting point</p>
+        <h2>Move from idea or PNG to engravable output.</h2>
+      </div>
       <section class="dashboard-options" aria-label="App options">
         <button id="openGeneratorBtn" class="workflow-tile" type="button">
           <span class="tile-icon" aria-hidden="true">AI</span>
           <span>
             <strong>Build Galvo Black & White Images</strong>
             <small>Create high-contrast black and white laser engraving artwork from a prompt.</small>
+            <em>Start from an idea</em>
           </span>
         </button>
 
@@ -50,6 +87,7 @@
           <span>
             <strong>Convert PNG Images to SVG</strong>
             <small>Trace PNG files into SVG with DPI, size, smoothing, and preview controls.</small>
+            <em>Start from existing artwork</em>
           </span>
         </button>
       </section>

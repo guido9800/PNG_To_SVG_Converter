@@ -1,14 +1,15 @@
 :root {
   color-scheme: light;
-  --bg: #f5f7f8;
-  --ink: #172025;
-  --muted: #5e6b72;
+  --bg: #eef2f3;
+  --ink: #131a1f;
+  --muted: #5a6770;
   --line: #cfd8dc;
   --panel: #ffffff;
-  --accent: #176b5b;
-  --accent-strong: #0d4c41;
-  --warm: #a34b2a;
-  --shadow: 0 18px 40px rgba(27, 39, 45, 0.11);
+  --accent: #126c5a;
+  --accent-strong: #0b4a3e;
+  --warm: #b65b33;
+  --steel: #24323a;
+  --shadow: 0 22px 54px rgba(19, 26, 31, 0.13);
 }
 
 * {
@@ -18,7 +19,9 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 18% 8%, rgba(18, 108, 90, 0.13), transparent 28%),
+    linear-gradient(180deg, #f8faf9 0%, var(--bg) 54%, #e8eeee 100%);
   color: var(--ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -38,11 +41,11 @@ textarea {
 
 .dashboard-shell {
   min-height: 100vh;
-  width: min(1320px, 100%);
+  width: min(1380px, 100%);
   margin: 0 auto;
   padding: 22px;
   display: grid;
-  grid-template-rows: auto minmax(520px, 1fr) auto;
+  grid-template-rows: auto minmax(560px, auto) auto auto auto;
   gap: 18px;
 }
 
@@ -55,8 +58,9 @@ textarea {
   padding: 12px 16px;
   border: 1px solid rgba(207, 216, 220, 0.9);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.86);
   box-shadow: 0 12px 30px rgba(27, 39, 45, 0.08);
+  backdrop-filter: blur(14px);
 }
 
 .brand-lockup {
@@ -71,9 +75,10 @@ textarea {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: var(--ink);
+  background: linear-gradient(135deg, var(--ink), var(--accent-strong));
   color: #ffffff;
   font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 .brand-lockup strong,
@@ -103,35 +108,48 @@ textarea {
 }
 
 .dashboard-hero {
-  min-height: 560px;
-  display: flex;
+  min-height: 590px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(380px, 0.78fr);
+  gap: clamp(20px, 4vw, 52px);
   align-items: center;
-  padding: clamp(24px, 5vw, 62px);
-  border: 1px solid rgba(23, 32, 37, 0.14);
+  padding: clamp(24px, 4.6vw, 64px);
+  border: 1px solid rgba(23, 32, 37, 0.12);
   border-radius: 8px;
   overflow: hidden;
   background:
-    linear-gradient(90deg, rgba(245, 247, 248, 0.98) 0%, rgba(245, 247, 248, 0.92) 38%, rgba(245, 247, 248, 0.32) 74%),
-    url("assets/laser-dashboard-hero.png");
-  background-size: cover;
-  background-position: center right;
+    linear-gradient(120deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 248, 247, 0.92) 48%, rgba(232, 239, 238, 0.8) 100%);
   box-shadow: var(--shadow);
+  position: relative;
+}
+
+.dashboard-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -120px -160px auto;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: rgba(18, 108, 90, 0.12);
+  pointer-events: none;
 }
 
 .hero-content {
   width: min(720px, 100%);
+  position: relative;
+  z-index: 1;
 }
 
 .dashboard-hero h1 {
   max-width: 720px;
-  font-size: clamp(2.35rem, 5.6vw, 5.35rem);
+  font-size: clamp(2.5rem, 5.5vw, 5.2rem);
   line-height: 0.98;
 }
 
 .hero-copy {
-  max-width: 660px;
+  max-width: 620px;
   margin: 18px 0 0;
-  color: #3f4d54;
+  color: #405059;
   font-size: clamp(1rem, 1.5vw, 1.16rem);
   line-height: 1.58;
 }
@@ -150,7 +168,7 @@ textarea {
 }
 
 .hero-secondary {
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.86);
 }
 
 .hero-secondary:hover {
@@ -168,10 +186,135 @@ textarea {
   border: 1px solid rgba(23, 32, 37, 0.12);
   border-radius: 999px;
   padding: 8px 11px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.82);
   color: #3f4d54;
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.hero-visual {
+  min-height: 470px;
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(23, 32, 37, 0.14);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 28px 70px rgba(19, 26, 31, 0.18);
+}
+
+.hero-visual img {
+  width: 100%;
+  height: 100%;
+  min-height: 470px;
+  display: block;
+  object-fit: cover;
+}
+
+.preview-card {
+  display: grid;
+  gap: 3px;
+  min-width: 170px;
+  padding: 13px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 16px 38px rgba(19, 26, 31, 0.18);
+  backdrop-filter: blur(12px);
+}
+
+.preview-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.preview-card strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.floating-card {
+  position: absolute;
+}
+
+.card-top {
+  top: 26px;
+  left: 24px;
+}
+
+.card-bottom {
+  right: 24px;
+  bottom: 24px;
+}
+
+.engrave-sample {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 94px;
+  display: grid;
+  gap: 8px;
+}
+
+.engrave-sample span {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(19, 26, 31, 0.84);
+}
+
+.engrave-sample span:nth-child(2) {
+  width: 72%;
+  background: rgba(18, 108, 90, 0.82);
+}
+
+.engrave-sample span:nth-child(3) {
+  width: 48%;
+}
+
+.landing-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.landing-metrics div {
+  min-height: 110px;
+  padding: 22px;
+  border: 1px solid rgba(207, 216, 220, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 34px rgba(27, 39, 45, 0.08);
+}
+
+.landing-metrics strong,
+.landing-metrics span {
+  display: block;
+}
+
+.landing-metrics strong {
+  font-size: 1.55rem;
+}
+
+.landing-metrics span {
+  margin-top: 8px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.workflow-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 2px 0;
+}
+
+.workflow-heading h2 {
+  max-width: 660px;
+  font-size: clamp(1.5rem, 2.6vw, 2.35rem);
+  line-height: 1.08;
 }
 
 .dashboard-options {
@@ -181,14 +324,15 @@ textarea {
 }
 
 .workflow-tile {
-  min-height: 152px;
+  min-height: 188px;
   align-items: flex-start;
   justify-content: flex-start;
   gap: 16px;
-  padding: 24px;
+  padding: 28px;
   text-align: left;
   border-radius: 8px;
-  background: #ffffff;
+  background:
+    linear-gradient(135deg, #ffffff 0%, #f6f9f8 100%);
   box-shadow: 0 14px 34px rgba(27, 39, 45, 0.09);
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -228,6 +372,15 @@ textarea {
   font-size: 0.94rem;
   font-weight: 700;
   line-height: 1.45;
+}
+
+.workflow-tile em {
+  display: inline-flex;
+  margin-top: 18px;
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .topbar {
@@ -760,6 +913,27 @@ textarea {
 }
 
 @media (max-width: 980px) {
+  .dashboard-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-visual {
+    min-height: 360px;
+  }
+
+  .hero-visual img {
+    min-height: 360px;
+  }
+
+  .landing-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .workspace,
   .generator-workspace,
   .preview-grid {
@@ -792,7 +966,7 @@ textarea {
   .dashboard-shell {
     padding: 14px;
     align-content: start;
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
   }
 
   .landing-nav {
@@ -801,17 +975,39 @@ textarea {
   }
 
   .dashboard-hero {
-    min-height: 580px;
+    min-height: auto;
     padding: 24px;
     align-items: end;
-    background:
-      linear-gradient(180deg, rgba(245, 247, 248, 0.96) 0%, rgba(245, 247, 248, 0.88) 48%, rgba(245, 247, 248, 0.48) 100%),
-      url("assets/laser-dashboard-hero.png");
-    background-size: cover;
-    background-position: center;
   }
 
   .dashboard-options {
     grid-template-columns: 1fr;
+  }
+
+  .hero-actions button {
+    width: 100%;
+  }
+
+  .hero-visual {
+    min-height: 310px;
+  }
+
+  .hero-visual img {
+    min-height: 310px;
+  }
+
+  .floating-card {
+    position: static;
+    margin: 10px;
+  }
+
+  .card-bottom {
+    margin-top: -76px;
+    margin-left: auto;
+    width: max-content;
+  }
+
+  .engrave-sample {
+    display: none;
   }
 }
