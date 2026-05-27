@@ -97,10 +97,22 @@ function readRequestJson(request) {
 
 function getStyleInstruction(style) {
   const styles = {
-    "line-art": "Style: clean black line art with confident outlines and controlled interior detail.",
+    realistic: "Style: realistic laser engraving artwork using only pure black and pure white. Simulate realism with contour lines, selective crosshatching, clean highlights, silhouettes, and controlled negative space; no grayscale or soft shading.",
+    "high-contrast": "Style: extremely high contrast black and white artwork with strong mark/no-mark separation, bold readable forms, and no midtones.",
+    "line-art": "Style: bold clean line art with confident outlines, controlled interior detail, and trace-friendly connected shapes.",
+    "vector-illustration": "Style: vector-style illustration with crisp geometric edges, clean filled shapes, simplified forms, and no fuzzy texture.",
     silhouette: "Style: bold black silhouette with minimal cutouts and strong outer shape readability.",
-    stencil: "Style: stencil-ready black and white design with separated islands and no fragile hairline gaps.",
+    stencil: "Style: stencil art with separated islands, bridged shapes where needed, strong cutout readability, and no fragile hairline gaps.",
     logo: "Style: logo-like black and white mark with simplified geometry and strong brand-style clarity.",
+    woodcut: "Style: woodcut and linocut inspired engraving with bold carved lines, intentional hatch marks, rugged high contrast texture, and clean traceable edges.",
+    "engraving-portrait": "Style: engraving-style portrait with realistic facial structure, bold contour lines, controlled crosshatching, clear highlights, and no gray shading.",
+    "laser-friendly": "Style: laser engraving friendly artwork with bold practical line spacing, simplified traceable geometry, minimal speckles, and durable details.",
+    "negative-space": "Style: negative space shading using black/white shape design, clean highlight cutouts, controlled shadow masses, and no gray gradient shading.",
+    "white-linework": "Style: white linework on solid black background, designed for dark powder-coated tumblers where white marks represent laser-removed coating.",
+    "fur-texture": "Style: sharp fur texture built from clean black-and-white tapered line groups, bold fur direction, readable animal form, and no tiny noisy hairlines.",
+    "front-dog-portrait": "Style: symmetrical front-facing dog portrait with realistic eyes, muzzle, ears, and fur texture; centered sticker-like composition; pure black and white only.",
+    "sticker-logo": "Style: sticker/logo-style composition with strong outer silhouette, clean interior details, bold readable shape language, and simple trace-friendly edges.",
+    cartoon: "Style: cartoon engraving style with expressive simplified shapes, bold outlines, high contrast, clean white/black areas, and no gray fills.",
   };
   return styles[style] || styles["line-art"];
 }
@@ -110,6 +122,7 @@ function getDetailInstruction(detail) {
     simple: "Detail level: simple and bold, prioritizing reliable engraving over fine detail.",
     balanced: "Detail level: balanced, with enough interior line work to be interesting while remaining engravable.",
     detailed: "Detail level: detailed but engravable, with clean separated lines and no muddy texture.",
+    realistic: "Detail level: realistic, with the most lifelike black-and-white engraving detail possible while preserving clean edges, practical laser line spacing, and trace-friendly contrast.",
   };
   return details[detail] || details.balanced;
 }

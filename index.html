@@ -125,9 +125,21 @@
           <div class="control-group">
             <label for="engravingStyle">Engraving style</label>
             <select id="engravingStyle">
-              <option value="line-art">Clean black line art</option>
+              <option value="realistic">Realistic laser engraving</option>
+              <option value="high-contrast">High contrast black and white</option>
+              <option value="line-art">Bold line art</option>
+              <option value="vector-illustration">Vector-style illustration</option>
+              <option value="stencil">Stencil art</option>
+              <option value="woodcut">Woodcut / linocut inspired</option>
+              <option value="engraving-portrait">Engraving-style portrait</option>
+              <option value="laser-friendly">Laser engraving friendly</option>
+              <option value="negative-space">Negative space shading</option>
+              <option value="white-linework">White linework on black background</option>
+              <option value="fur-texture">Sharp fur texture</option>
+              <option value="front-dog-portrait">Symmetrical front-facing dog portrait</option>
+              <option value="sticker-logo">Sticker/logo-style composition</option>
+              <option value="cartoon">Cartoon engraving style</option>
               <option value="silhouette">Bold silhouette</option>
-              <option value="stencil">Stencil-ready design</option>
               <option value="logo">Logo-style mark</option>
             </select>
           </div>
@@ -136,6 +148,7 @@
             <label for="engravingDetail">Detail level</label>
             <select id="engravingDetail">
               <option value="balanced">Balanced</option>
+              <option value="realistic">Realistic</option>
               <option value="simple">Simple and bold</option>
               <option value="detailed">Detailed but engravable</option>
             </select>
@@ -623,7 +636,7 @@
         window.openGalvoStudioView = openView;
       })();
     </script>
-    <script src="api-config.js?v=20260527-image-builder-controls"></script>
-    <script src="app.js?v=20260527-image-builder-controls"></script>
+    <script src="api-config.js?v=20260527-engraving-styles"></script>
+    <script src="app.js?v=20260527-engraving-styles"></script>
   </body>
 </html>
