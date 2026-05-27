@@ -95,6 +95,10 @@ const els = {
 const controls = [els.mode, els.maxSize, els.dpi, els.physicalWidth, els.physicalHeight, els.colors, els.smoothness, els.photoContrast, els.edgeSensitivity, els.lineWeight, els.threshold, els.simplify, els.cornerSmoothing, els.minFeature, els.alpha, els.trim, els.background, els.invert];
 let renderTimer = 0;
 
+function on(element, eventName, handler) {
+  if (element) element.addEventListener(eventName, handler);
+}
+
 const controlHelp = {
   maxSize: {
     title: "Render Detail",
@@ -226,15 +230,15 @@ const controlHelp = {
   },
 };
 
-els.openGeneratorBtn.addEventListener("click", () => showView("generator"));
-els.openConverterBtn.addEventListener("click", () => showView("converter"));
-els.heroGeneratorBtn.addEventListener("click", () => showView("generator"));
-els.heroConverterBtn.addEventListener("click", () => showView("converter"));
-els.backHomeButtons.forEach((button) => button.addEventListener("click", () => showView("dashboard")));
-els.generateEngravingBtn.addEventListener("click", generateEngravingImage);
-els.downloadGeneratedBtn.addEventListener("click", downloadGeneratedPng);
-els.sendGeneratedToConverterBtn.addEventListener("click", sendGeneratedToConverter);
-els.aiOptimizeBtn.addEventListener("click", optimizeCurrentPngWithAi);
+on(els.openGeneratorBtn, "click", () => showView("generator"));
+on(els.openConverterBtn, "click", () => showView("converter"));
+on(els.heroGeneratorBtn, "click", () => showView("generator"));
+on(els.heroConverterBtn, "click", () => showView("converter"));
+els.backHomeButtons.forEach((button) => on(button, "click", () => showView("dashboard")));
+on(els.generateEngravingBtn, "click", generateEngravingImage);
+on(els.downloadGeneratedBtn, "click", downloadGeneratedPng);
+on(els.sendGeneratedToConverterBtn, "click", sendGeneratedToConverter);
+on(els.aiOptimizeBtn, "click", optimizeCurrentPngWithAi);
 
 els.fileInput.addEventListener("change", () => {
   const file = els.fileInput.files?.[0];
@@ -420,6 +424,11 @@ function showView(view) {
   els.dashboardView.hidden = view !== "dashboard";
   els.generatorView.hidden = view !== "generator";
   els.converterView.hidden = view !== "converter";
+  if (window.openGalvoStudioView && !showView.syncing) {
+    showView.syncing = true;
+    window.openGalvoStudioView(view);
+    showView.syncing = false;
+  }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 

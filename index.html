@@ -25,8 +25,8 @@
           <h1>Professional laser artwork tools for clean galvo engraving.</h1>
           <p class="hero-copy">Create black and white engraving art with AI, optimize uploaded PNGs for marking, and convert production artwork into SVG files with DPI-aware sizing.</p>
           <div class="hero-actions">
-            <button id="heroGeneratorBtn" class="primary-button hero-button" type="button">Build Engraving Image</button>
-            <button id="heroConverterBtn" class="hero-secondary" type="button">Convert PNG to SVG</button>
+            <button id="heroGeneratorBtn" class="primary-button hero-button" type="button" data-view="generator">Build Engraving Image</button>
+            <button id="heroConverterBtn" class="hero-secondary" type="button" data-view="converter">Convert PNG to SVG</button>
           </div>
           <div class="trust-row" aria-label="Workflow highlights">
             <span>AI black and white generation</span>
@@ -73,7 +73,7 @@
         <h2>Move from idea or PNG to engravable output.</h2>
       </div>
       <section class="dashboard-options" aria-label="App options">
-        <button id="openGeneratorBtn" class="workflow-tile" type="button">
+        <button id="openGeneratorBtn" class="workflow-tile" type="button" data-view="generator">
           <span class="tile-icon" aria-hidden="true">AI</span>
           <span>
             <strong>Build Galvo Black & White Images</strong>
@@ -82,7 +82,7 @@
           </span>
         </button>
 
-        <button id="openConverterBtn" class="workflow-tile" type="button">
+        <button id="openConverterBtn" class="workflow-tile" type="button" data-view="converter">
           <span class="tile-icon" aria-hidden="true">SVG</span>
           <span>
             <strong>Convert PNG Images to SVG</strong>
@@ -100,7 +100,7 @@
           <h1>Galvo Black & White Image Builder</h1>
         </div>
         <div class="actions">
-          <button class="icon-button back-home" type="button" title="Back to dashboard">
+          <button class="icon-button back-home" type="button" title="Back to dashboard" data-view="dashboard">
             <span aria-hidden="true">←</span>
             <span>Dashboard</span>
           </button>
@@ -173,7 +173,7 @@
           <h1>PNG to SVG Converter</h1>
         </div>
         <div class="actions">
-          <button class="icon-button back-home" type="button" title="Back to dashboard">
+          <button class="icon-button back-home" type="button" title="Back to dashboard" data-view="dashboard">
             <span aria-hidden="true">←</span>
             <span>Dashboard</span>
           </button>
@@ -483,6 +483,43 @@
       </form>
     </dialog>
 
+    <script>
+      (() => {
+        const views = {
+          dashboard: document.querySelector("#dashboardView"),
+          generator: document.querySelector("#generatorView"),
+          converter: document.querySelector("#converterView"),
+        };
+
+        function openView(view) {
+          const nextView = views[view] ? view : "dashboard";
+          Object.entries(views).forEach(([name, element]) => {
+            if (element) element.hidden = name !== nextView;
+          });
+          if (window.location.hash !== `#${nextView}`) {
+            history.replaceState(null, "", `#${nextView}`);
+          }
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        document.addEventListener("click", (event) => {
+          const trigger = event.target.closest("[data-view]");
+          if (!trigger) return;
+          event.preventDefault();
+          openView(trigger.dataset.view);
+        });
+
+        window.addEventListener("hashchange", () => {
+          openView(window.location.hash.replace("#", ""));
+        });
+
+        if (window.location.hash) {
+          openView(window.location.hash.replace("#", ""));
+        }
+
+        window.openGalvoStudioView = openView;
+      })();
+    </script>
     <script src="app.js"></script>
   </body>
 </html>
