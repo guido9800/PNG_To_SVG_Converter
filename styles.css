@@ -833,6 +833,11 @@ textarea {
   line-height: 1.45;
 }
 
+.error-status {
+  color: #8f3d21;
+  font-weight: 800;
+}
+
 .custom-size-panel {
   margin-top: 10px;
   padding: 12px;

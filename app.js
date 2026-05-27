@@ -471,18 +471,19 @@ function showView(view) {
 async function generateEngravingImage() {
   const prompt = els.engravingPrompt.value.trim();
   if (!prompt) {
-    els.generatorStatus.textContent = "Describe the image you want first.";
+    showGeneratorError("Describe the image you want first.");
     els.engravingPrompt.focus();
     return;
   }
 
   const sizeSettings = getEngravingSizeSettings();
   if (!sizeSettings.valid) {
-    els.generatorStatus.textContent = sizeSettings.error;
+    showGeneratorError(sizeSettings.error);
     els.engravingCustomWidth.focus();
     return;
   }
 
+  hideGeneratorError();
   els.generateEngravingBtn.disabled = true;
   els.downloadGeneratedBtn.disabled = true;
   els.sendGeneratedToConverterBtn.disabled = true;
@@ -561,12 +562,30 @@ function stopGenerationStatus() {
 }
 
 function updateGenerationStatus(message, isError = false) {
-  els.generatorStatus.textContent = message;
+  if (isError) {
+    if (els.generatorProgress) els.generatorProgress.hidden = true;
+    showGeneratorError(message);
+    return;
+  }
+
+  hideGeneratorError();
   if (!els.generatorProgress) return;
   els.generatorProgress.hidden = false;
-  els.generatorProgress.classList.toggle("error", isError);
+  els.generatorProgress.classList.remove("error");
   const label = els.generatorProgress.querySelector("span");
   if (label) label.textContent = message;
+}
+
+function showGeneratorError(message) {
+  if (!els.generatorStatus) return;
+  els.generatorStatus.textContent = message;
+  els.generatorStatus.hidden = false;
+}
+
+function hideGeneratorError() {
+  if (!els.generatorStatus) return;
+  els.generatorStatus.textContent = "";
+  els.generatorStatus.hidden = true;
 }
 
 async function enhanceGeneratedImage(dataUrl, options) {
@@ -700,7 +719,7 @@ function getApiUnavailableMessage() {
 function updateApiAvailabilityMessage() {
   if (!location.hostname.endsWith("github.io") || apiBaseUrl) return;
   if (els.generatorStatus) {
-    els.generatorStatus.textContent = "AI generation requires a deployed API backend. The PNG to SVG converter works directly in this browser.";
+    showGeneratorError("AI generation requires a deployed API backend. The PNG to SVG converter works directly in this browser.");
   }
   if (els.aiOptimizeStatus) {
     els.aiOptimizeStatus.textContent = "AI optimization requires a deployed API backend. Local SVG conversion still works.";
