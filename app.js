@@ -99,6 +99,7 @@ const els = {
 
 const controls = [els.mode, els.maxSize, els.dpi, els.physicalWidth, els.physicalHeight, els.colors, els.smoothness, els.photoContrast, els.edgeSensitivity, els.lineWeight, els.threshold, els.simplify, els.cornerSmoothing, els.minFeature, els.alpha, els.trim, els.background, els.invert];
 let renderTimer = 0;
+const apiBaseUrl = window.GALVO_API_BASE_URL || "";
 
 function on(element, eventName, handler) {
   if (element) element.addEventListener(eventName, handler);
@@ -310,6 +311,7 @@ els.zoomFitBtn.addEventListener("click", () => setPreviewZoom(100));
 syncLabels();
 showView("dashboard");
 updateEngravingSizeControls();
+updateApiAvailabilityMessage();
 
 els.modeInfoBtn.addEventListener("click", () => {
   els.modeInfoDialog.showModal();
@@ -468,22 +470,17 @@ async function generateEngravingImage() {
   els.generatorStatus.textContent = "Generating laser-ready image...";
 
   try {
-    const response = await fetch("/api/generate-engraving", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt,
-        style: els.engravingStyle.value,
-        detail: els.engravingDetail.value,
-        size: sizeSettings.apiSize,
-        requestedSize: sizeSettings.description,
-        requestedRatio: sizeSettings.ratio,
-      }),
+    const payload = await postApiJson("/api/generate-engraving", {
+      prompt,
+      style: els.engravingStyle.value,
+      detail: els.engravingDetail.value,
+      size: sizeSettings.apiSize,
+      requestedSize: sizeSettings.description,
+      requestedRatio: sizeSettings.ratio,
     });
 
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "Image generation failed.");
+    if (!payload.image) {
+      throw new Error("The image API did not return image data.");
     }
 
     state.generatedPng = `data:image/png;base64,${payload.image}`;
@@ -498,6 +495,44 @@ async function generateEngravingImage() {
     console.error(error);
   } finally {
     els.generateEngravingBtn.disabled = false;
+  }
+}
+
+async function postApiJson(path, body) {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(getApiUnavailableMessage());
+  }
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || "The AI service returned an error.");
+  }
+
+  return payload;
+}
+
+function getApiUnavailableMessage() {
+  if (location.hostname.endsWith("github.io") && !apiBaseUrl) {
+    return "AI tools need a deployed API backend. GitHub Pages can show the app, but it cannot run the OpenAI server.";
+  }
+
+  return "AI tools API is not available. Start the local Node server with npm start, then try again.";
+}
+
+function updateApiAvailabilityMessage() {
+  if (!location.hostname.endsWith("github.io") || apiBaseUrl) return;
+  if (els.generatorStatus) {
+    els.generatorStatus.textContent = "AI generation requires a deployed API backend. The PNG to SVG converter works directly in this browser.";
+  }
+  if (els.aiOptimizeStatus) {
+    els.aiOptimizeStatus.textContent = "AI optimization requires a deployed API backend. Local SVG conversion still works.";
   }
 }
 
@@ -596,20 +631,15 @@ async function optimizeCurrentPngWithAi() {
   els.status.textContent = "AI optimizing PNG...";
 
   try {
-    const response = await fetch("/api/optimize-png", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image: state.pngDataUrl,
-        fileName: state.file.name,
-        mode: els.mode.value,
-        size: getAiSizeFromAspectRatio(),
-      }),
+    const payload = await postApiJson("/api/optimize-png", {
+      image: state.pngDataUrl,
+      fileName: state.file.name,
+      mode: els.mode.value,
+      size: getAiSizeFromAspectRatio(),
     });
 
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "AI optimization failed.");
+    if (!payload.image) {
+      throw new Error("The image API did not return optimized image data.");
     }
 
     const optimizedDataUrl = `data:image/png;base64,${payload.image}`;
