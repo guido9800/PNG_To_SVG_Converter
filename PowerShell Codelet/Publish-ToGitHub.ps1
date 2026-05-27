@@ -143,6 +143,131 @@ function Get-ValidatedProjectPath {
     $projectPath
 }
 
+function Get-ServerPort {
+    $portText = $serverPortBox.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($portText)) { return 4173 }
+    $port = 0
+    if (-not [int]::TryParse($portText, [ref]$port) -or $port -lt 1 -or $port -gt 65535) {
+        throw "Enter a valid server port between 1 and 65535."
+    }
+    $port
+}
+
+function Get-ServerProcesses {
+    param([int]$Port)
+
+    $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if (-not $connections) { return @() }
+
+    $processes = @()
+    foreach ($processId in ($connections | Select-Object -ExpandProperty OwningProcess -Unique)) {
+        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+        if ($process) { $processes += $process }
+    }
+    $processes
+}
+
+function Update-ServerStatus {
+    try {
+        $port = Get-ServerPort
+        $processes = Get-ServerProcesses $port
+        if ($processes.Count -gt 0) {
+            $serverStateLabel.Text = "Running on port $port"
+            $serverStateLabel.ForeColor = $colors.Accent
+            $serverProcessLabel.Text = "Process: " + (($processes | ForEach-Object { "$($_.ProcessName) #$($_.Id)" }) -join ", ")
+        } else {
+            $serverStateLabel.Text = "Stopped"
+            $serverStateLabel.ForeColor = $colors.Muted
+            $serverProcessLabel.Text = "Process: none"
+        }
+    } catch {
+        $serverStateLabel.Text = "Status unavailable"
+        $serverStateLabel.ForeColor = $colors.Muted
+        $serverProcessLabel.Text = $_.Exception.Message
+    }
+}
+
+function Stop-LocalServer {
+    try {
+        $port = Get-ServerPort
+        $processes = Get-ServerProcesses $port
+        if ($processes.Count -eq 0) {
+            Write-Log "Local server is already stopped."
+            Update-ServerStatus
+            return
+        }
+
+        foreach ($process in $processes) {
+            Stop-Process -Id $process.Id -Force -ErrorAction Stop
+        }
+        Start-Sleep -Milliseconds 500
+        Write-Log "Stopped local server on port $port."
+        Update-ServerStatus
+    } catch {
+        Write-Log "Stop server failed."
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Stop server failed")
+    }
+}
+
+function Start-LocalServer {
+    try {
+        $projectPath = Get-ValidatedProjectPath
+        $port = Get-ServerPort
+        $serverFile = Join-Path $projectPath "server.js"
+        if (-not (Test-Path $serverFile)) { throw "server.js was not found in the selected project folder." }
+        if (-not (Test-Command "node")) { throw "Node.js is not installed or is not available in PATH." }
+
+        $running = Get-ServerProcesses $port
+        if ($running.Count -gt 0) {
+            Write-Log "Local server is already running on port $port."
+            Update-ServerStatus
+            return
+        }
+
+        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $startInfo.FileName = "node"
+        $startInfo.Arguments = "server.js"
+        $startInfo.WorkingDirectory = $projectPath
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+        $startInfo.EnvironmentVariables["PORT"] = [string]$port
+        if (-not $startInfo.EnvironmentVariables.ContainsKey("HOST")) {
+            $startInfo.EnvironmentVariables["HOST"] = "0.0.0.0"
+        }
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $startInfo
+        [void]$process.Start()
+        Start-Sleep -Seconds 2
+
+        $running = Get-ServerProcesses $port
+        if ($running.Count -eq 0) { throw "The server did not start. Check your .env file and server.js." }
+
+        Write-Log "Started local server on port $port."
+        Update-ServerStatus
+    } catch {
+        Write-Log "Start server failed."
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Start server failed")
+    }
+}
+
+function Restart-LocalServer {
+    Stop-LocalServer
+    Start-LocalServer
+}
+
+function Open-LocalServer {
+    try {
+        $port = Get-ServerPort
+        Start-Process "http://127.0.0.1:$port/"
+        Write-Log "Opened local app in browser."
+    } catch {
+        Write-Log "Open browser failed."
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Open browser failed")
+    }
+}
+
 function Ensure-GitRepository {
     param([string]$ProjectPath)
 
@@ -381,7 +506,7 @@ function Sync-SelectedFiles {
 
 function Show-HelpDialog {
     $helpForm = New-Object System.Windows.Forms.Form
-    $helpForm.Text = "GitHub Publisher Help"
+    $helpForm.Text = "Project Tools Help"
     $helpForm.Size = New-Object System.Drawing.Size(720, 620)
     $helpForm.StartPosition = "CenterParent"
     $helpForm.BackColor = $colors.Background
@@ -457,8 +582,21 @@ function Show-HelpDialog {
     & $addHelpLine "File checklist" $fontBold $colors.Ink 0
     & $addHelpLine "Only checked files are synced. Uncheck files you want to leave alone." $font $colors.Muted 10
 
+    & $addHelpLine "Local App Server" $fontSection $colors.Accent 4
+    & $addHelpLine "Port" $fontBold $colors.Ink 0
+    & $addHelpLine "The local web server port. This project normally uses 4173. The app opens at http://127.0.0.1:4173/." $font $colors.Muted 6
+    & $addHelpLine "Start" $fontBold $colors.Ink 0
+    & $addHelpLine "Starts the local Node server from the selected project folder. Use this when the app is not running." $font $colors.Muted 6
+    & $addHelpLine "Restart" $fontBold $colors.Ink 0
+    & $addHelpLine "Stops anything currently listening on the selected port, then starts server.js again. Use this after changing .env, server.js, or backend settings." $font $colors.Muted 6
+    & $addHelpLine "Stop" $fontBold $colors.Ink 0
+    & $addHelpLine "Stops the local server on the selected port. This frees the port if PowerShell says address already in use." $font $colors.Muted 6
+    & $addHelpLine "Open App" $fontBold $colors.Ink 0
+    & $addHelpLine "Opens the local app in your browser. Use the local URL for AI features before the backend is hosted." $font $colors.Muted 10
+
     & $addHelpLine "Requirements" $fontSection $colors.Accent 4
     & $addHelpLine "Git must be installed and available in PowerShell." $font $colors.Ink 4
+    & $addHelpLine "Node.js must be installed for the local server controls." $font $colors.Ink 4
     & $addHelpLine "GitHub CLI is only needed if you want the form to create new repositories. To set it up, open PowerShell and run:" $font $colors.Ink 0
     & $addHelpLine "gh auth login" $fontBold $colors.AccentDark 6
     & $addHelpLine "If GitHub CLI is not installed, you can still publish to an existing GitHub repo by entering the owner and repository name or the full remote URL." $font $colors.Muted 0
@@ -472,22 +610,22 @@ function Show-HelpDialog {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Publish Project to GitHub"
-$form.Size = New-Object System.Drawing.Size(830, 920)
+$form.Text = "Project Publisher and Server Tools"
+$form.Size = New-Object System.Drawing.Size(830, 1040)
 $form.StartPosition = "CenterScreen"
-$form.MinimumSize = New-Object System.Drawing.Size(820, 900)
+$form.MinimumSize = New-Object System.Drawing.Size(820, 980)
 $form.BackColor = $colors.Background
 $form.Font = $font
 
 $titleLabel = New-Object System.Windows.Forms.Label
-$titleLabel.Text = "Publish Project to GitHub"
+$titleLabel.Text = "Project Publisher and Server Tools"
 $titleLabel.Location = New-Object System.Drawing.Point(24, 20)
 $titleLabel.Size = New-Object System.Drawing.Size(460, 40)
 $titleLabel.Font = $fontTitle
 $titleLabel.ForeColor = $colors.Ink
 
 $subtitleLabel = New-Object System.Windows.Forms.Label
-$subtitleLabel.Text = "Commit local changes, connect a remote, and push your app to GitHub."
+$subtitleLabel.Text = "Commit changes, sync GitHub files, and restart the local web app server."
 $subtitleLabel.Location = New-Object System.Drawing.Point(27, 60)
 $subtitleLabel.Size = New-Object System.Drawing.Size(560, 24)
 $subtitleLabel.Font = $font
@@ -595,16 +733,34 @@ $syncCard.Controls.AddRange(@(
     $syncFileList
 ))
 
-$publishButton = New-Button "Publish to GitHub" 24 796 170 38 $true
+$serverCard = New-Card 24 792 750 112
+$serverHeader = New-Label "Local App Server" 18 12 180 24 $true
+$serverHeader.ForeColor = $colors.Ink
+$serverHint = New-Label "Start, stop, or restart the local Node server used by the AI-enabled app." 18 36 700 22
+$serverPortLabel = New-Label "Port" 18 70 45 22
+$serverPortBox = New-TextBox 62 68 72 "4173"
+$startServerButton = New-Button "Start" 148 66 86 30 $false
+$restartServerButton = New-Button "Restart" 244 66 96 30 $true
+$stopServerButton = New-Button "Stop" 350 66 86 30 $false
+$openServerButton = New-Button "Open App" 446 66 96 30 $false
+$serverStateLabel = New-Label "Stopped" 556 68 170 22 $true
+$serverProcessLabel = New-Label "Process: none" 556 88 170 20
+$serverCard.Controls.AddRange(@(
+    $serverHeader, $serverHint, $serverPortLabel, $serverPortBox,
+    $startServerButton, $restartServerButton, $stopServerButton, $openServerButton,
+    $serverStateLabel, $serverProcessLabel
+))
+
+$publishButton = New-Button "Publish to GitHub" 24 922 170 38 $true
 $statusLabel = New-Object System.Windows.Forms.Label
 $statusLabel.Text = "Ready"
-$statusLabel.Location = New-Object System.Drawing.Point(210, 804)
+$statusLabel.Location = New-Object System.Drawing.Point(210, 930)
 $statusLabel.Size = New-Object System.Drawing.Size(560, 24)
 $statusLabel.ForeColor = $colors.Muted
 $statusLabel.Font = $font
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(24, 846)
+$logBox.Location = New-Object System.Drawing.Point(24, 972)
 $logBox.Size = New-Object System.Drawing.Size(750, 26)
 $logBox.Multiline = $false
 $logBox.ReadOnly = $true
@@ -636,6 +792,11 @@ $browseButton.Add_Click({
 
 $refreshFilesButton.Add_Click({ Refresh-SyncFileList })
 $syncButton.Add_Click({ Sync-SelectedFiles })
+$startServerButton.Add_Click({ Start-LocalServer })
+$restartServerButton.Add_Click({ Restart-LocalServer })
+$stopServerButton.Add_Click({ Stop-LocalServer })
+$openServerButton.Add_Click({ Open-LocalServer })
+$serverPortBox.Add_TextChanged({ Update-ServerStatus })
 $newestRadio.Add_CheckedChanged({
     if ($newestRadio.Checked) { $overrideNewestCheck.Checked = $false }
 })
@@ -714,7 +875,8 @@ $publishButton.Add_Click({
 $form.Controls.AddRange(@(
     $titleLabel, $subtitleLabel, $helpButton,
     $projectCard, $repoCard, $optionsCard, $syncCard,
-    $publishButton, $statusLabel, $logBox
+    $serverCard, $publishButton, $statusLabel, $logBox
 ))
 
+Update-ServerStatus
 [void]$form.ShowDialog()
