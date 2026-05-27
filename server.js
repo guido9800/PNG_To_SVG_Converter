@@ -114,6 +114,34 @@ function getDetailInstruction(detail) {
   return details[detail] || details.balanced;
 }
 
+function getLineWeightInstruction(lineWeight) {
+  const weights = {
+    normal: "Line strength: use normal trace-friendly engraving lines with clear spacing.",
+    bold: "Line strength: use bolder engraving lines and stronger primary outlines so details survive powder-coat marking.",
+    heavy: "Line strength: use heavy, highly readable mark lines, simplified interior detail, and extra separation between shapes.",
+    fine: "Line strength: allow finer detail, but keep every line practical for laser engraving and SVG tracing.",
+  };
+  return weights[lineWeight] || weights.normal;
+}
+
+function getCleanupInstruction(cleanup) {
+  const cleanupModes = {
+    balanced: "Cleanup target: balanced 1-bit output with clean edges, minimal speckles, and controlled detail.",
+    crisp: "Cleanup target: crisp high-contrast edges, fewer gray transition pixels, and clean closed shapes for tracing.",
+    aggressive: "Cleanup target: aggressive speckle reduction, simplified texture, no tiny dust-like dots, and bold connected shapes.",
+    preserve: "Cleanup target: preserve more intentional fine detail while still avoiding grayscale, fuzz, and fragile hairlines.",
+  };
+  return cleanupModes[cleanup] || cleanupModes.balanced;
+}
+
+function getResolutionInstruction(upscale) {
+  const factor = Number(upscale) || 1;
+  if (factor > 1) {
+    return `Final output workflow: after OpenAI returns the image, the app will locally upscale the PNG ${factor}x and force clean black/white pixels. Compose with enough clean shape separation to survive that final upscale and threshold cleanup.`;
+  }
+  return "Final output workflow: native OpenAI output size with clean black/white pixels and trace-friendly contrast.";
+}
+
 function getBackgroundInstruction(background) {
   const backgrounds = {
     dark: "Tumbler/background: dark powder-coated tumbler. Use a solid black background with white engraving lines. Black means powder coat remains; white means laser removes coating and reveals stainless steel.",
@@ -198,6 +226,9 @@ async function generateEngravingImage(body) {
     engravingInstructions,
     getStyleInstruction(body.style),
     getDetailInstruction(body.detail),
+    getLineWeightInstruction(body.lineWeight),
+    getCleanupInstruction(body.cleanup),
+    getResolutionInstruction(body.upscale),
     getBackgroundInstruction(body.background),
     getWrapInstruction(body.wrap),
     getRotaryCompensationInstruction(Boolean(body.rotaryCompensation), body),

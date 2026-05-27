@@ -142,6 +142,36 @@
           </div>
 
           <div class="control-group">
+            <label for="engravingLineWeight">Line strength</label>
+            <select id="engravingLineWeight">
+              <option value="normal">Normal trace-friendly lines</option>
+              <option value="bold">Bolder engraving lines</option>
+              <option value="heavy">Heavy mark lines</option>
+              <option value="fine">Finer detail lines</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="engravingCleanup">B/W cleanup</label>
+            <select id="engravingCleanup">
+              <option value="balanced">Balanced clean 1-bit output</option>
+              <option value="crisp">Crisp edges / fewer gray pixels</option>
+              <option value="aggressive">Aggressive speckle cleanup</option>
+              <option value="preserve">Preserve more fine detail</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="engravingUpscale">Final PNG resolution</label>
+            <select id="engravingUpscale">
+              <option value="2">2x upscaled, recommended</option>
+              <option value="1">Native OpenAI size</option>
+              <option value="3">3x high-resolution</option>
+              <option value="4">4x maximum local upscale</option>
+            </select>
+          </div>
+
+          <div class="control-group">
             <label for="engravingBackground">Tumbler / background</label>
             <select id="engravingBackground">
               <option value="dark">Dark powder coat: white engraving on black</option>
@@ -210,6 +240,9 @@
           <p class="small-status">For full wraps, this asks the AI to compose for about 8-10% narrower generated width while keeping height unchanged, so the image can be stretched back to final width in laser software.</p>
 
           <button id="generateEngravingBtn" class="primary-button full-width" type="button">Generate Image</button>
+          <div id="generatorProgress" class="status-progress" aria-live="polite" hidden>
+            <span></span>
+          </div>
           <p id="generatorStatus" class="small-status" aria-live="polite">Ready to generate.</p>
         </aside>
 
@@ -220,6 +253,11 @@
           </div>
           <div id="generatedPreview" class="preview-surface checker empty">
             <span>Your generated black and white image will appear here</span>
+          </div>
+          <div class="preview-actions">
+            <button id="sendGeneratedToConverterPreviewBtn" class="primary-button" type="button" disabled>
+              Send Image to PNG to SVG Converter
+            </button>
           </div>
         </section>
       </section>
@@ -585,7 +623,7 @@
         window.openGalvoStudioView = openView;
       })();
     </script>
-    <script src="api-config.js?v=20260527-api-config"></script>
-    <script src="app.js?v=20260527-api-config"></script>
+    <script src="api-config.js?v=20260527-image-builder-controls"></script>
+    <script src="app.js?v=20260527-image-builder-controls"></script>
   </body>
 </html>

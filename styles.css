@@ -644,6 +644,50 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
+.status-progress {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(18, 108, 90, 0.22);
+  border-radius: 8px;
+  background: #eef7f4;
+  color: var(--accent-strong);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.status-progress::before {
+  content: "";
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(18, 108, 90, 0.18) 20%, rgba(18, 108, 90, 0.78) 50%, rgba(18, 108, 90, 0.18) 80%, transparent 100%),
+    rgba(18, 108, 90, 0.12);
+  background-size: 45% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  animation: statusSweep 1.2s linear infinite;
+}
+
+.status-progress.error {
+  border-color: rgba(182, 91, 51, 0.28);
+  background: #fff4ef;
+  color: #8f3d21;
+}
+
+.status-progress.error::before {
+  animation: none;
+  background: rgba(182, 91, 51, 0.5);
+}
+
+@keyframes statusSweep {
+  from { background-position: -45% 0, 0 0; }
+  to { background-position: 145% 0, 0 0; }
+}
+
 .stats {
   display: grid;
   gap: 10px;
@@ -817,6 +861,18 @@ textarea {
   max-height: 680px;
   border: 1px solid rgba(23, 32, 37, 0.12);
   background: #ffffff;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.preview-actions .primary-button {
+  min-height: 44px;
+  padding-inline: 18px;
 }
 
 .modal {

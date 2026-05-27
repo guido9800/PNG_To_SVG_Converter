@@ -23,6 +23,9 @@ const els = {
   engravingPrompt: document.querySelector("#engravingPrompt"),
   engravingStyle: document.querySelector("#engravingStyle"),
   engravingDetail: document.querySelector("#engravingDetail"),
+  engravingLineWeight: document.querySelector("#engravingLineWeight"),
+  engravingCleanup: document.querySelector("#engravingCleanup"),
+  engravingUpscale: document.querySelector("#engravingUpscale"),
   engravingBackground: document.querySelector("#engravingBackground"),
   engravingWrap: document.querySelector("#engravingWrap"),
   engravingSize: document.querySelector("#engravingSize"),
@@ -33,11 +36,13 @@ const els = {
   engravingSizeHint: document.querySelector("#engravingSizeHint"),
   rotaryCompensation: document.querySelector("#rotaryCompensation"),
   generateEngravingBtn: document.querySelector("#generateEngravingBtn"),
+  generatorProgress: document.querySelector("#generatorProgress"),
   generatorStatus: document.querySelector("#generatorStatus"),
   generatedPreview: document.querySelector("#generatedPreview"),
   generatedMeta: document.querySelector("#generatedMeta"),
   downloadGeneratedBtn: document.querySelector("#downloadGeneratedBtn"),
   sendGeneratedToConverterBtn: document.querySelector("#sendGeneratedToConverterBtn"),
+  sendGeneratedToConverterPreviewBtn: document.querySelector("#sendGeneratedToConverterPreviewBtn"),
   aiOptimizeBtn: document.querySelector("#aiOptimizeBtn"),
   aiOptimizeStatus: document.querySelector("#aiOptimizeStatus"),
   fileInput: document.querySelector("#fileInput"),
@@ -102,6 +107,7 @@ const els = {
 
 const controls = [els.mode, els.maxSize, els.dpi, els.physicalWidth, els.physicalHeight, els.colors, els.smoothness, els.photoContrast, els.edgeSensitivity, els.lineWeight, els.threshold, els.simplify, els.cornerSmoothing, els.minFeature, els.alpha, els.trim, els.background, els.invert];
 let renderTimer = 0;
+let generationStatusTimer = 0;
 const apiBaseUrl = window.GALVO_API_BASE_URL || "";
 const engravingSizePresets = {
   "11x5.75in": { width: 11, height: 5.75, description: "11 x 5.75 in tumbler wrap" },
@@ -254,6 +260,7 @@ els.backHomeButtons.forEach((button) => on(button, "click", () => showView("dash
 on(els.generateEngravingBtn, "click", generateEngravingImage);
 on(els.downloadGeneratedBtn, "click", downloadGeneratedPng);
 on(els.sendGeneratedToConverterBtn, "click", sendGeneratedToConverter);
+on(els.sendGeneratedToConverterPreviewBtn, "click", sendGeneratedToConverter);
 on(els.aiOptimizeBtn, "click", optimizeCurrentPngWithAi);
 on(els.engravingSize, "change", updateEngravingSizeControls);
 on(els.engravingCustomWidth, "input", updateEngravingSizeControls);
@@ -477,13 +484,19 @@ async function generateEngravingImage() {
   }
 
   els.generateEngravingBtn.disabled = true;
-  els.generatorStatus.textContent = "Generating laser-ready image...";
+  els.downloadGeneratedBtn.disabled = true;
+  els.sendGeneratedToConverterBtn.disabled = true;
+  els.sendGeneratedToConverterPreviewBtn.disabled = true;
+  startGenerationStatus();
 
   try {
     const payload = await postApiJson("/api/generate-engraving", {
       prompt,
       style: els.engravingStyle.value,
       detail: els.engravingDetail.value,
+      lineWeight: els.engravingLineWeight.value,
+      cleanup: els.engravingCleanup.value,
+      upscale: els.engravingUpscale.value,
       background: els.engravingBackground.value,
       wrap: els.engravingWrap.value,
       rotaryCompensation: els.rotaryCompensation.checked,
@@ -499,19 +512,161 @@ async function generateEngravingImage() {
       throw new Error("The image API did not return image data.");
     }
 
-    state.generatedPng = `data:image/png;base64,${payload.image}`;
+    updateGenerationStatus("OpenAI returned the base image. Applying final laser cleanup...");
+    const generatedDataUrl = `data:image/png;base64,${payload.image}`;
+    const processed = await enhanceGeneratedImage(generatedDataUrl, {
+      upscale: Number(els.engravingUpscale.value) || 1,
+      cleanup: els.engravingCleanup.value,
+      lineWeight: els.engravingLineWeight.value,
+      background: els.engravingBackground.value,
+    });
+
+    state.generatedPng = processed.dataUrl;
     els.generatedPreview.classList.remove("empty");
     els.generatedPreview.innerHTML = `<img class="generated-image" alt="Generated black and white laser engraving artwork" src="${state.generatedPng}">`;
-    els.generatedMeta.textContent = `${sizeSettings.description}, ${payload.size} source, PNG`;
-    els.generatorStatus.textContent = "Image generated.";
+    els.generatedMeta.textContent = `${sizeSettings.description}, ${payload.size} source, ${processed.width} x ${processed.height} final PNG`;
+    updateGenerationStatus("Image generated and cleaned for laser prep.");
     els.downloadGeneratedBtn.disabled = false;
     els.sendGeneratedToConverterBtn.disabled = false;
+    els.sendGeneratedToConverterPreviewBtn.disabled = false;
   } catch (error) {
-    els.generatorStatus.textContent = error.message || "Image generation failed.";
+    updateGenerationStatus(error.message || "Image generation failed.", true);
     console.error(error);
   } finally {
+    stopGenerationStatus();
     els.generateEngravingBtn.disabled = false;
   }
+}
+
+function startGenerationStatus() {
+  const messages = [
+    "Sending laser engraving prompt to OpenAI...",
+    "OpenAI is building the black and white composition...",
+    "Still working. Full-wrap and high-detail images can take a little longer...",
+    "Checking for trace-friendly contrast and clean line structure...",
+    "Preparing the final PNG for laser workflow..."
+  ];
+  let index = 0;
+  updateGenerationStatus(messages[index]);
+  clearInterval(generationStatusTimer);
+  generationStatusTimer = setInterval(() => {
+    index = Math.min(index + 1, messages.length - 1);
+    updateGenerationStatus(messages[index]);
+  }, 4500);
+}
+
+function stopGenerationStatus() {
+  clearInterval(generationStatusTimer);
+  generationStatusTimer = 0;
+}
+
+function updateGenerationStatus(message, isError = false) {
+  els.generatorStatus.textContent = message;
+  if (!els.generatorProgress) return;
+  els.generatorProgress.hidden = false;
+  els.generatorProgress.classList.toggle("error", isError);
+  const label = els.generatorProgress.querySelector("span");
+  if (label) label.textContent = message;
+}
+
+async function enhanceGeneratedImage(dataUrl, options) {
+  const image = await createImage(dataUrl);
+  const scale = Math.max(1, Math.min(4, Number(options.upscale) || 1));
+  const width = Math.round(image.naturalWidth * scale);
+  const height = Math.round(image.naturalHeight * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  context.imageSmoothingEnabled = scale > 1;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, 0, 0, width, height);
+
+  const imageData = context.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const threshold = getGeneratedCleanupThreshold(options.cleanup);
+  const markIsWhite = options.background !== "light";
+  let mask = new Uint8Array(width * height);
+
+  for (let index = 0, pixel = 0; index < data.length; index += 4, pixel += 1) {
+    const alpha = data[index + 3] / 255;
+    const luma = ((data[index] * 0.2126) + (data[index + 1] * 0.7152) + (data[index + 2] * 0.0722)) * alpha + 255 * (1 - alpha);
+    mask[pixel] = markIsWhite ? (luma >= threshold ? 1 : 0) : (luma < threshold ? 1 : 0);
+  }
+
+  mask = adjustGeneratedLineWeight(mask, width, height, options.lineWeight);
+  mask = cleanGeneratedMask(mask, width, height, options.cleanup);
+
+  for (let index = 0, pixel = 0; index < data.length; index += 4, pixel += 1) {
+    const mark = mask[pixel] === 1;
+    const value = markIsWhite ? (mark ? 255 : 0) : (mark ? 0 : 255);
+    data[index] = value;
+    data[index + 1] = value;
+    data[index + 2] = value;
+    data[index + 3] = 255;
+  }
+
+  context.putImageData(imageData, 0, 0);
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    width,
+    height,
+  };
+}
+
+function getGeneratedCleanupThreshold(cleanup) {
+  if (cleanup === "crisp") return 148;
+  if (cleanup === "aggressive") return 160;
+  if (cleanup === "preserve") return 132;
+  return 142;
+}
+
+function adjustGeneratedLineWeight(mask, width, height, lineWeight) {
+  if (lineWeight === "bold") return dilateMask(mask, width, height, 1);
+  if (lineWeight === "heavy") return dilateMask(mask, width, height, 2);
+  if (lineWeight === "fine") return erodeMask(mask, width, height, 1);
+  return mask;
+}
+
+function cleanGeneratedMask(mask, width, height, cleanup) {
+  if (cleanup === "aggressive") return removeSmallComponents(mask, width, height, 18).mask;
+  if (cleanup === "crisp") return removeSmallComponents(mask, width, height, 8).mask;
+  if (cleanup === "preserve") return removeSmallComponents(mask, width, height, 2).mask;
+  return removeSmallComponents(mask, width, height, 5).mask;
+}
+
+function erodeMask(mask, width, height, radius) {
+  const output = new Uint8Array(mask.length);
+  const radiusSquared = radius * radius;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (!mask[index]) continue;
+      let keep = true;
+
+      for (let dy = -radius; dy <= radius && keep; dy += 1) {
+        const nextY = y + dy;
+        if (nextY < 0 || nextY >= height) {
+          keep = false;
+          break;
+        }
+
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          if ((dx * dx) + (dy * dy) > radiusSquared) continue;
+          const nextX = x + dx;
+          if (nextX < 0 || nextX >= width || !mask[nextY * width + nextX]) {
+            keep = false;
+            break;
+          }
+        }
+      }
+
+      output[index] = keep ? 1 : 0;
+    }
+  }
+
+  return output;
 }
 
 async function postApiJson(path, body) {
@@ -650,7 +805,16 @@ async function sendGeneratedToConverter() {
   if (!state.generatedPng) return;
   const file = await dataUrlToFile(state.generatedPng, "galvo-black-white-engraving.png");
   showView("converter");
+  els.mode.value = "smooth-bw";
+  els.dpi.value = "300";
+  els.threshold.value = "128";
+  els.simplify.value = "0.8";
+  els.cornerSmoothing.value = "1";
+  els.minFeature.value = "8";
+  els.background.checked = false;
+  els.invert.checked = false;
   await loadPng(file);
+  els.status.textContent = "Generated image loaded into SVG converter";
 }
 
 async function optimizeCurrentPngWithAi() {
