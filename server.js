@@ -6,7 +6,12 @@ const root = __dirname;
 loadEnvFile(path.join(root, ".env"));
 
 const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || "0.0.0.0";
 const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://127.0.0.1:4173,http://localhost:4173,https://guido9800.github.io")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -52,6 +57,16 @@ function loadEnvFile(filePath) {
     const value = trimmed.slice(equalsIndex + 1).trim().replace(/^["']|["']$/g, "");
     if (!process.env[key]) process.env[key] = value;
   }
+}
+
+function applyCors(request, response) {
+  const origin = request.headers.origin;
+  if (origin && (allowedOrigins.includes("*") || allowedOrigins.includes(origin))) {
+    response.setHeader("Access-Control-Allow-Origin", origin);
+    response.setHeader("Vary", "Origin");
+  }
+  response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
 }
 
 function sendJson(response, statusCode, payload) {
@@ -316,6 +331,14 @@ function serveStatic(request, response) {
 }
 
 const server = http.createServer(async (request, response) => {
+  applyCors(request, response);
+
+  if (request.method === "OPTIONS") {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
+
   try {
     if (request.method === "POST" && request.url === "/api/generate-engraving") {
       const body = await readRequestJson(request);
@@ -342,6 +365,6 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
+server.listen(port, host, () => {
   console.log(`PNG to SVG Converter running at http://127.0.0.1:${port}/`);
 });
