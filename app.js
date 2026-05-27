@@ -24,6 +24,11 @@ const els = {
   engravingStyle: document.querySelector("#engravingStyle"),
   engravingDetail: document.querySelector("#engravingDetail"),
   engravingSize: document.querySelector("#engravingSize"),
+  customEngravingSize: document.querySelector("#customEngravingSize"),
+  engravingCustomWidth: document.querySelector("#engravingCustomWidth"),
+  engravingCustomHeight: document.querySelector("#engravingCustomHeight"),
+  engravingCustomUnit: document.querySelector("#engravingCustomUnit"),
+  engravingSizeHint: document.querySelector("#engravingSizeHint"),
   generateEngravingBtn: document.querySelector("#generateEngravingBtn"),
   generatorStatus: document.querySelector("#generatorStatus"),
   generatedPreview: document.querySelector("#generatedPreview"),
@@ -239,6 +244,10 @@ on(els.generateEngravingBtn, "click", generateEngravingImage);
 on(els.downloadGeneratedBtn, "click", downloadGeneratedPng);
 on(els.sendGeneratedToConverterBtn, "click", sendGeneratedToConverter);
 on(els.aiOptimizeBtn, "click", optimizeCurrentPngWithAi);
+on(els.engravingSize, "change", updateEngravingSizeControls);
+on(els.engravingCustomWidth, "input", updateEngravingSizeControls);
+on(els.engravingCustomHeight, "input", updateEngravingSizeControls);
+on(els.engravingCustomUnit, "change", updateEngravingSizeControls);
 
 els.fileInput.addEventListener("change", () => {
   const file = els.fileInput.files?.[0];
@@ -300,6 +309,7 @@ els.zoomFitBtn.addEventListener("click", () => setPreviewZoom(100));
 
 syncLabels();
 showView("dashboard");
+updateEngravingSizeControls();
 
 els.modeInfoBtn.addEventListener("click", () => {
   els.modeInfoDialog.showModal();
@@ -447,6 +457,13 @@ async function generateEngravingImage() {
     return;
   }
 
+  const sizeSettings = getEngravingSizeSettings();
+  if (!sizeSettings.valid) {
+    els.generatorStatus.textContent = sizeSettings.error;
+    els.engravingCustomWidth.focus();
+    return;
+  }
+
   els.generateEngravingBtn.disabled = true;
   els.generatorStatus.textContent = "Generating laser-ready image...";
 
@@ -458,7 +475,9 @@ async function generateEngravingImage() {
         prompt,
         style: els.engravingStyle.value,
         detail: els.engravingDetail.value,
-        size: els.engravingSize.value,
+        size: sizeSettings.apiSize,
+        requestedSize: sizeSettings.description,
+        requestedRatio: sizeSettings.ratio,
       }),
     });
 
@@ -470,7 +489,7 @@ async function generateEngravingImage() {
     state.generatedPng = `data:image/png;base64,${payload.image}`;
     els.generatedPreview.classList.remove("empty");
     els.generatedPreview.innerHTML = `<img class="generated-image" alt="Generated black and white laser engraving artwork" src="${state.generatedPng}">`;
-    els.generatedMeta.textContent = `${payload.size}, PNG`;
+    els.generatedMeta.textContent = `${sizeSettings.description}, ${payload.size} source, PNG`;
     els.generatorStatus.textContent = "Image generated.";
     els.downloadGeneratedBtn.disabled = false;
     els.sendGeneratedToConverterBtn.disabled = false;
@@ -480,6 +499,73 @@ async function generateEngravingImage() {
   } finally {
     els.generateEngravingBtn.disabled = false;
   }
+}
+
+function updateEngravingSizeControls() {
+  const custom = els.engravingSize.value === "custom";
+  els.customEngravingSize.hidden = !custom;
+  const settings = getEngravingSizeSettings({ allowEmpty: true });
+  if (els.engravingSizeHint) {
+    els.engravingSizeHint.textContent = settings.valid
+      ? `${settings.description}. Generation uses ${settings.apiSize}, the closest available image shape.`
+      : "Enter a wide and tall value greater than 0.";
+  }
+}
+
+function getEngravingSizeSettings(options = {}) {
+  const selected = els.engravingSize.value;
+  if (selected !== "custom") {
+    const ratio = parseRatio(selected);
+    return {
+      valid: true,
+      ratio,
+      apiSize: getOpenAiSizeForRatio(ratio),
+      description: `${selected} ratio`,
+    };
+  }
+
+  const width = Number(els.engravingCustomWidth.value);
+  const height = Number(els.engravingCustomHeight.value);
+  const unit = els.engravingCustomUnit.value;
+
+  if ((!width || !height) && options.allowEmpty) {
+    return {
+      valid: true,
+      ratio: 1,
+      apiSize: "1024x1024",
+      description: "Custom size not set",
+    };
+  }
+
+  if (!(width > 0) || !(height > 0)) {
+    return {
+      valid: false,
+      error: "Enter custom wide and tall values greater than 0.",
+    };
+  }
+
+  const ratio = width / height;
+  const unitLabel = unit === "ratio" ? "ratio" : unit;
+  return {
+    valid: true,
+    ratio,
+    apiSize: getOpenAiSizeForRatio(ratio),
+    description: unit === "ratio"
+      ? `${formatSliderNumber(width)}:${formatSliderNumber(height)} custom ratio`
+      : `${formatSliderNumber(width)} x ${formatSliderNumber(height)} ${unitLabel}`,
+  };
+}
+
+function parseRatio(value) {
+  const [wide, tall] = value.split(":").map(Number);
+  if (!(wide > 0) || !(tall > 0)) return 1;
+  return wide / tall;
+}
+
+function getOpenAiSizeForRatio(ratio) {
+  if (ratio > 1.18) return "1536x1024";
+  if (ratio < 0.85) return "1024x1536";
+  return "1024x1024";
 }
 
 function downloadGeneratedPng() {

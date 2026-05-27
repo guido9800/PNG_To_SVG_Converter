@@ -144,10 +144,38 @@
           <div class="control-group">
             <label for="engravingSize">Image shape</label>
             <select id="engravingSize">
-              <option value="1024x1024">Square</option>
-              <option value="1536x1024">Wide</option>
-              <option value="1024x1536">Tall</option>
+              <option value="1:1">Square 1:1</option>
+              <option value="4:5">Portrait 4:5</option>
+              <option value="2:3">Portrait 2:3</option>
+              <option value="3:4">Portrait 3:4</option>
+              <option value="5:4">Landscape 5:4</option>
+              <option value="3:2">Landscape 3:2</option>
+              <option value="4:3">Landscape 4:3</option>
+              <option value="16:9">Wide 16:9</option>
+              <option value="custom">Custom size / ratio</option>
             </select>
+          </div>
+
+          <div id="customEngravingSize" class="custom-size-panel" hidden>
+            <div class="size-grid">
+              <label>
+                <span>Wide</span>
+                <input id="engravingCustomWidth" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="10">
+              </label>
+              <label>
+                <span>Tall</span>
+                <input id="engravingCustomHeight" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="8">
+              </label>
+            </div>
+            <label class="unit-label" for="engravingCustomUnit">
+              <span>Custom unit</span>
+              <select id="engravingCustomUnit">
+                <option value="in">Inches</option>
+                <option value="mm">Millimeters</option>
+                <option value="ratio">Ratio</option>
+              </select>
+            </label>
+            <p id="engravingSizeHint" class="small-status">The AI generator will use the closest available image shape, while preserving your requested proportion in the prompt.</p>
           </div>
 
           <button id="generateEngravingBtn" class="primary-button full-width" type="button">Generate Image</button>

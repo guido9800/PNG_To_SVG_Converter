@@ -133,8 +133,10 @@ async function generateEngravingImage(body) {
     engravingInstructions,
     getStyleInstruction(body.style),
     getDetailInstruction(body.detail),
+    body.requestedSize ? `Requested output proportion: ${body.requestedSize}. Keep the artwork composed for this proportion, with enough margin for laser engraving.` : "",
+    body.requestedRatio ? `Requested wide-to-tall ratio: ${body.requestedRatio}.` : "",
     `User request: ${prompt}`,
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
 
   const openAiResponse = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",

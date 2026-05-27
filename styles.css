@@ -787,6 +787,27 @@ textarea {
   line-height: 1.45;
 }
 
+.custom-size-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+}
+
+.unit-label {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.unit-label select {
+  margin-top: 0;
+}
+
 .generator-preview {
   min-height: 620px;
 }
