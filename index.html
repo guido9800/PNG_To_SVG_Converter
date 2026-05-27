@@ -499,7 +499,13 @@
           if (window.location.hash !== `#${nextView}`) {
             history.replaceState(null, "", `#${nextView}`);
           }
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          if (nextView === "dashboard") {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          } else {
+            requestAnimationFrame(() => {
+              views[nextView]?.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+          }
         }
 
         document.addEventListener("click", (event) => {

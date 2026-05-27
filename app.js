@@ -429,7 +429,14 @@ function showView(view) {
     window.openGalvoStudioView(view);
     showView.syncing = false;
   }
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (view === "dashboard") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else {
+    const target = view === "generator" ? els.generatorView : els.converterView;
+    requestAnimationFrame(() => {
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 }
 
 async function generateEngravingImage() {
