@@ -422,7 +422,8 @@ h2 {
   justify-content: flex-end;
 }
 
-button {
+button,
+.external-link {
   border: 1px solid var(--line);
   border-radius: 8px;
   min-height: 42px;
@@ -435,6 +436,7 @@ button {
   justify-content: center;
   gap: 8px;
   font-weight: 800;
+  text-decoration: none;
 }
 
 .info-button,
