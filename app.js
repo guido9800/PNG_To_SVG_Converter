@@ -8,9 +8,28 @@ const state = {
   aspectRatio: 1,
   syncingSize: false,
   previewZoom: 100,
+  generatedPng: "",
 };
 
 const els = {
+  dashboardView: document.querySelector("#dashboardView"),
+  generatorView: document.querySelector("#generatorView"),
+  converterView: document.querySelector("#converterView"),
+  openGeneratorBtn: document.querySelector("#openGeneratorBtn"),
+  openConverterBtn: document.querySelector("#openConverterBtn"),
+  backHomeButtons: document.querySelectorAll(".back-home"),
+  engravingPrompt: document.querySelector("#engravingPrompt"),
+  engravingStyle: document.querySelector("#engravingStyle"),
+  engravingDetail: document.querySelector("#engravingDetail"),
+  engravingSize: document.querySelector("#engravingSize"),
+  generateEngravingBtn: document.querySelector("#generateEngravingBtn"),
+  generatorStatus: document.querySelector("#generatorStatus"),
+  generatedPreview: document.querySelector("#generatedPreview"),
+  generatedMeta: document.querySelector("#generatedMeta"),
+  downloadGeneratedBtn: document.querySelector("#downloadGeneratedBtn"),
+  sendGeneratedToConverterBtn: document.querySelector("#sendGeneratedToConverterBtn"),
+  aiOptimizeBtn: document.querySelector("#aiOptimizeBtn"),
+  aiOptimizeStatus: document.querySelector("#aiOptimizeStatus"),
   fileInput: document.querySelector("#fileInput"),
   dropZone: document.querySelector("#dropZone"),
   sourceCanvas: document.querySelector("#sourceCanvas"),
@@ -205,6 +224,14 @@ const controlHelp = {
   },
 };
 
+els.openGeneratorBtn.addEventListener("click", () => showView("generator"));
+els.openConverterBtn.addEventListener("click", () => showView("converter"));
+els.backHomeButtons.forEach((button) => button.addEventListener("click", () => showView("dashboard")));
+els.generateEngravingBtn.addEventListener("click", generateEngravingImage);
+els.downloadGeneratedBtn.addEventListener("click", downloadGeneratedPng);
+els.sendGeneratedToConverterBtn.addEventListener("click", sendGeneratedToConverter);
+els.aiOptimizeBtn.addEventListener("click", optimizeCurrentPngWithAi);
+
 els.fileInput.addEventListener("change", () => {
   const file = els.fileInput.files?.[0];
   if (file) loadPng(file);
@@ -264,6 +291,7 @@ els.zoomInBtn.addEventListener("click", () => setPreviewZoom(state.previewZoom +
 els.zoomFitBtn.addEventListener("click", () => setPreviewZoom(100));
 
 syncLabels();
+showView("dashboard");
 
 els.modeInfoBtn.addEventListener("click", () => {
   els.modeInfoDialog.showModal();
@@ -311,6 +339,8 @@ async function loadPng(file) {
   setInitialPhysicalSize();
   els.fileName.textContent = file.name;
   els.inputStats.textContent = `${state.image.naturalWidth} x ${state.image.naturalHeight}, ${formatBytes(file.size)}${state.pngDpi ? `, ${state.pngDpi} DPI` : ""}`;
+  els.aiOptimizeBtn.disabled = false;
+  els.aiOptimizeStatus.textContent = "Optional: use AI to rebuild this PNG as black and white engraving art before SVG conversion.";
   render();
 }
 
@@ -380,6 +410,122 @@ function showControlHelp(helpKey) {
     .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
     .join("");
   els.controlHelpDialog.showModal();
+}
+
+function showView(view) {
+  els.dashboardView.hidden = view !== "dashboard";
+  els.generatorView.hidden = view !== "generator";
+  els.converterView.hidden = view !== "converter";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function generateEngravingImage() {
+  const prompt = els.engravingPrompt.value.trim();
+  if (!prompt) {
+    els.generatorStatus.textContent = "Describe the image you want first.";
+    els.engravingPrompt.focus();
+    return;
+  }
+
+  els.generateEngravingBtn.disabled = true;
+  els.generatorStatus.textContent = "Generating laser-ready image...";
+
+  try {
+    const response = await fetch("/api/generate-engraving", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        style: els.engravingStyle.value,
+        detail: els.engravingDetail.value,
+        size: els.engravingSize.value,
+      }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Image generation failed.");
+    }
+
+    state.generatedPng = `data:image/png;base64,${payload.image}`;
+    els.generatedPreview.classList.remove("empty");
+    els.generatedPreview.innerHTML = `<img class="generated-image" alt="Generated black and white laser engraving artwork" src="${state.generatedPng}">`;
+    els.generatedMeta.textContent = `${payload.size}, PNG`;
+    els.generatorStatus.textContent = "Image generated.";
+    els.downloadGeneratedBtn.disabled = false;
+    els.sendGeneratedToConverterBtn.disabled = false;
+  } catch (error) {
+    els.generatorStatus.textContent = error.message || "Image generation failed.";
+    console.error(error);
+  } finally {
+    els.generateEngravingBtn.disabled = false;
+  }
+}
+
+function downloadGeneratedPng() {
+  if (!state.generatedPng) return;
+  const anchor = document.createElement("a");
+  anchor.href = state.generatedPng;
+  anchor.download = "galvo-black-white-engraving.png";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+async function sendGeneratedToConverter() {
+  if (!state.generatedPng) return;
+  const file = await dataUrlToFile(state.generatedPng, "galvo-black-white-engraving.png");
+  showView("converter");
+  await loadPng(file);
+}
+
+async function optimizeCurrentPngWithAi() {
+  if (!state.pngDataUrl || !state.file) return;
+
+  const confirmed = window.confirm("This will send the loaded PNG to OpenAI and replace the current converter input with an AI-optimized black and white engraving PNG. Continue?");
+  if (!confirmed) return;
+
+  els.aiOptimizeBtn.disabled = true;
+  els.aiOptimizeStatus.textContent = "Optimizing PNG with AI...";
+  els.status.textContent = "AI optimizing PNG...";
+
+  try {
+    const response = await fetch("/api/optimize-png", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image: state.pngDataUrl,
+        fileName: state.file.name,
+        mode: els.mode.value,
+        size: getAiSizeFromAspectRatio(),
+      }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "AI optimization failed.");
+    }
+
+    const optimizedDataUrl = `data:image/png;base64,${payload.image}`;
+    const optimizedName = `${(state.file.name || "image").replace(/\.png$/i, "")}-ai-optimized.png`;
+    const optimizedFile = await dataUrlToFile(optimizedDataUrl, optimizedName);
+    await loadPng(optimizedFile);
+    els.aiOptimizeStatus.textContent = "AI optimized PNG loaded. Tune SVG settings or download when ready.";
+  } catch (error) {
+    els.aiOptimizeStatus.textContent = error.message || "AI optimization failed.";
+    els.status.textContent = "AI optimization failed";
+    console.error(error);
+  } finally {
+    els.aiOptimizeBtn.disabled = false;
+  }
+}
+
+function getAiSizeFromAspectRatio() {
+  if (!state.image) return "1024x1024";
+  const ratio = state.image.naturalWidth / state.image.naturalHeight;
+  if (ratio > 1.2) return "1536x1024";
+  if (ratio < 0.84) return "1024x1536";
+  return "1024x1024";
 }
 
 function render() {
@@ -1082,6 +1228,12 @@ function readAsDataUrl(file) {
     reader.addEventListener("error", () => reject(reader.error));
     reader.readAsDataURL(file);
   });
+}
+
+async function dataUrlToFile(dataUrl, fileName) {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], fileName, { type: "image/png" });
 }
 
 async function readPngDpi(file) {

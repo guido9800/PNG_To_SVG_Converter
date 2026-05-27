@@ -7,13 +7,118 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="app">
+    <main id="dashboardView" class="dashboard-shell">
+      <section class="dashboard-hero">
+        <div>
+          <p class="eyebrow">Galvo artwork studio</p>
+          <h1>Build laser-ready artwork or convert PNG files to SVG.</h1>
+          <p class="hero-copy">Choose a workflow. Generate crisp black and white engraving images with OpenAI, or convert existing PNG artwork into SVG files sized for galvo laser software.</p>
+        </div>
+      </section>
+
+      <section class="dashboard-options" aria-label="App options">
+        <button id="openGeneratorBtn" class="workflow-tile" type="button">
+          <span class="tile-icon" aria-hidden="true">✦</span>
+          <span>
+            <strong>Build Galvo Black & White Images</strong>
+            <small>Create high-contrast black and white laser engraving artwork from a prompt.</small>
+          </span>
+        </button>
+
+        <button id="openConverterBtn" class="workflow-tile" type="button">
+          <span class="tile-icon" aria-hidden="true">⇄</span>
+          <span>
+            <strong>Convert PNG Images to SVG</strong>
+            <small>Trace PNG files into SVG with DPI, size, smoothing, and preview controls.</small>
+          </span>
+        </button>
+      </section>
+    </main>
+
+    <main id="generatorView" class="app" hidden>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">AI laser image builder</p>
+          <h1>Galvo Black & White Image Builder</h1>
+        </div>
+        <div class="actions">
+          <button class="icon-button back-home" type="button" title="Back to dashboard">
+            <span aria-hidden="true">←</span>
+            <span>Dashboard</span>
+          </button>
+          <button id="sendGeneratedToConverterBtn" class="icon-button" type="button" disabled title="Send generated image to converter">
+            <span aria-hidden="true">⇄</span>
+            <span>Convert to SVG</span>
+          </button>
+          <button id="downloadGeneratedBtn" class="primary-button" type="button" disabled title="Download generated PNG">
+            <span aria-hidden="true">v</span>
+            <span>Download PNG</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="generator-workspace">
+        <aside class="panel controls">
+          <div class="control-group first-control">
+            <label for="engravingPrompt">Describe the engraving image</label>
+            <textarea id="engravingPrompt" class="prompt-box" spellcheck="true" placeholder="Example: a bold black and white line art eagle head, clean vector-like edges, no gray shading, centered composition"></textarea>
+          </div>
+
+          <div class="control-group">
+            <label for="engravingStyle">Engraving style</label>
+            <select id="engravingStyle">
+              <option value="line-art">Clean black line art</option>
+              <option value="silhouette">Bold silhouette</option>
+              <option value="stencil">Stencil-ready design</option>
+              <option value="logo">Logo-style mark</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="engravingDetail">Detail level</label>
+            <select id="engravingDetail">
+              <option value="balanced">Balanced</option>
+              <option value="simple">Simple and bold</option>
+              <option value="detailed">Detailed but engravable</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="engravingSize">Image shape</label>
+            <select id="engravingSize">
+              <option value="1024x1024">Square</option>
+              <option value="1536x1024">Wide</option>
+              <option value="1024x1536">Tall</option>
+            </select>
+          </div>
+
+          <button id="generateEngravingBtn" class="primary-button full-width" type="button">Generate Image</button>
+          <p id="generatorStatus" class="small-status" aria-live="polite">Ready to generate.</p>
+        </aside>
+
+        <section class="preview-panel generator-preview">
+          <div class="preview-header">
+            <h2>Generated PNG</h2>
+            <span id="generatedMeta">No image generated</span>
+          </div>
+          <div id="generatedPreview" class="preview-surface checker empty">
+            <span>Your generated black and white image will appear here</span>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <main id="converterView" class="app" hidden>
       <header class="topbar">
         <div>
           <p class="eyebrow">Laser-ready PNG vectorizer</p>
           <h1>PNG to SVG Converter</h1>
         </div>
         <div class="actions">
+          <button class="icon-button back-home" type="button" title="Back to dashboard">
+            <span aria-hidden="true">←</span>
+            <span>Dashboard</span>
+          </button>
           <button id="previewBtn" class="icon-button" type="button" disabled title="Preview downloaded SVG">
             <span aria-hidden="true">o</span>
             <span>Preview</span>
@@ -37,6 +142,11 @@
             <strong>Drop a PNG here</strong>
             <span>or choose a file from your computer</span>
           </label>
+
+          <button id="aiOptimizeBtn" class="primary-button full-width" type="button" disabled title="Use AI to rebuild this PNG as black and white laser engraving art">
+            AI Optimize PNG for Engraving
+          </button>
+          <p id="aiOptimizeStatus" class="small-status" aria-live="polite">Load a PNG to enable AI optimization.</p>
 
           <div class="control-group">
             <div class="label-row">
