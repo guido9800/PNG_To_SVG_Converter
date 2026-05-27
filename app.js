@@ -17,6 +17,8 @@ const els = {
   converterView: document.querySelector("#converterView"),
   openGeneratorBtn: document.querySelector("#openGeneratorBtn"),
   openConverterBtn: document.querySelector("#openConverterBtn"),
+  heroGeneratorBtn: document.querySelector("#heroGeneratorBtn"),
+  heroConverterBtn: document.querySelector("#heroConverterBtn"),
   backHomeButtons: document.querySelectorAll(".back-home"),
   engravingPrompt: document.querySelector("#engravingPrompt"),
   engravingStyle: document.querySelector("#engravingStyle"),
@@ -226,6 +228,8 @@ const controlHelp = {
 
 els.openGeneratorBtn.addEventListener("click", () => showView("generator"));
 els.openConverterBtn.addEventListener("click", () => showView("converter"));
+els.heroGeneratorBtn.addEventListener("click", () => showView("generator"));
+els.heroConverterBtn.addEventListener("click", () => showView("converter"));
 els.backHomeButtons.forEach((button) => button.addEventListener("click", () => showView("dashboard")));
 els.generateEngravingBtn.addEventListener("click", generateEngravingImage);
 els.downloadGeneratedBtn.addEventListener("click", downloadGeneratedPng);

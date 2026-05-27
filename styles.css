@@ -38,41 +38,140 @@ textarea {
 
 .dashboard-shell {
   min-height: 100vh;
-  width: min(1180px, 100%);
+  width: min(1320px, 100%);
   margin: 0 auto;
-  padding: 34px 24px;
+  padding: 22px;
   display: grid;
-  align-content: center;
-  gap: 22px;
+  grid-template-rows: auto minmax(520px, 1fr) auto;
+  gap: 18px;
+}
+
+.landing-nav {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 16px;
+  border: 1px solid rgba(207, 216, 220, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 12px 30px rgba(27, 39, 45, 0.08);
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.brand-lockup strong,
+.brand-lockup small {
+  display: block;
+}
+
+.brand-lockup strong {
+  font-size: 1rem;
+}
+
+.brand-lockup small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.nav-pill {
+  border: 1px solid rgba(23, 107, 91, 0.24);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #eef7f4;
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .dashboard-hero {
-  min-height: 330px;
+  min-height: 560px;
   display: flex;
-  align-items: end;
-  padding: 34px;
-  border: 1px solid rgba(23, 32, 37, 0.18);
+  align-items: center;
+  padding: clamp(24px, 5vw, 62px);
+  border: 1px solid rgba(23, 32, 37, 0.14);
   border-radius: 8px;
   overflow: hidden;
   background:
-    linear-gradient(120deg, rgba(245, 247, 248, 0.92), rgba(245, 247, 248, 0.62)),
-    url("data:image/svg+xml,%3Csvg width='1200' height='520' viewBox='0 0 1200 520' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1200' height='520' fill='%23eef2f0'/%3E%3Cg fill='none' stroke='%23172025' stroke-width='16' stroke-linecap='round' stroke-linejoin='round' opacity='.9'%3E%3Cpath d='M120 364c114-134 221-201 320-201 77 0 132 38 206 98 84 68 148 97 241 77 67-14 127-55 181-122'/%3E%3Cpath d='M157 241c68-48 143-70 226-66 87 4 155 39 224 88 70 49 136 76 204 78' opacity='.42'/%3E%3Cpath d='M277 397c66-78 135-112 207-102 71 10 126 58 199 79 91 26 177-5 258-82' opacity='.55'/%3E%3C/g%3E%3Cg fill='%23176b5b' opacity='.95'%3E%3Ccircle cx='914' cy='168' r='46'/%3E%3Ccircle cx='1016' cy='272' r='18'/%3E%3C/g%3E%3C/svg%3E");
+    linear-gradient(90deg, rgba(245, 247, 248, 0.98) 0%, rgba(245, 247, 248, 0.92) 38%, rgba(245, 247, 248, 0.32) 74%),
+    url("assets/laser-dashboard-hero.png");
   background-size: cover;
-  background-position: center;
+  background-position: center right;
   box-shadow: var(--shadow);
 }
 
+.hero-content {
+  width: min(720px, 100%);
+}
+
 .dashboard-hero h1 {
-  max-width: 760px;
-  font-size: clamp(2rem, 5vw, 4.35rem);
+  max-width: 720px;
+  font-size: clamp(2.35rem, 5.6vw, 5.35rem);
+  line-height: 0.98;
 }
 
 .hero-copy {
-  max-width: 680px;
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: 1.05rem;
-  line-height: 1.55;
+  max-width: 660px;
+  margin: 18px 0 0;
+  color: #3f4d54;
+  font-size: clamp(1rem, 1.5vw, 1.16rem);
+  line-height: 1.58;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.hero-button,
+.hero-secondary {
+  min-height: 50px;
+  padding: 0 20px;
+}
+
+.hero-secondary {
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.hero-secondary:hover {
+  border-color: var(--accent);
+}
+
+.trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.trust-row span {
+  border: 1px solid rgba(23, 32, 37, 0.12);
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #3f4d54;
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .dashboard-options {
@@ -82,30 +181,35 @@ textarea {
 }
 
 .workflow-tile {
-  min-height: 164px;
+  min-height: 152px;
   align-items: flex-start;
   justify-content: flex-start;
   gap: 16px;
   padding: 24px;
   text-align: left;
   border-radius: 8px;
-  box-shadow: var(--shadow);
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(27, 39, 45, 0.09);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .workflow-tile:hover {
   border-color: var(--accent);
-  transform: translateY(-1px);
+  box-shadow: 0 18px 42px rgba(27, 39, 45, 0.13);
+  transform: translateY(-2px);
 }
 
 .tile-icon {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: #eaf5f2;
-  color: var(--accent-strong);
-  font-size: 1.35rem;
+  background: #172025;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
 .workflow-tile strong,
@@ -114,14 +218,15 @@ textarea {
 }
 
 .workflow-tile strong {
-  font-size: 1.16rem;
+  font-size: clamp(1rem, 1.6vw, 1.28rem);
   color: var(--ink);
 }
 
 .workflow-tile small {
   margin-top: 8px;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.94rem;
+  font-weight: 700;
   line-height: 1.45;
 }
 
@@ -685,13 +790,25 @@ textarea {
   }
 
   .dashboard-shell {
-    padding: 16px;
+    padding: 14px;
     align-content: start;
+    grid-template-rows: auto auto auto;
+  }
+
+  .landing-nav {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .dashboard-hero {
-    min-height: 420px;
+    min-height: 580px;
     padding: 24px;
+    align-items: end;
+    background:
+      linear-gradient(180deg, rgba(245, 247, 248, 0.96) 0%, rgba(245, 247, 248, 0.88) 48%, rgba(245, 247, 248, 0.48) 100%),
+      url("assets/laser-dashboard-hero.png");
+    background-size: cover;
+    background-position: center;
   }
 
   .dashboard-options {

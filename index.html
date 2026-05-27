@@ -8,17 +8,37 @@
   </head>
   <body>
     <main id="dashboardView" class="dashboard-shell">
+      <nav class="landing-nav" aria-label="Application">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">G</span>
+          <span>
+            <strong>Galvo Studio</strong>
+            <small>AI images and SVG conversion</small>
+          </span>
+        </div>
+        <span class="nav-pill">254-300 DPI workflow</span>
+      </nav>
+
       <section class="dashboard-hero">
-        <div>
+        <div class="hero-content">
           <p class="eyebrow">Galvo artwork studio</p>
-          <h1>Build laser-ready artwork or convert PNG files to SVG.</h1>
-          <p class="hero-copy">Choose a workflow. Generate crisp black and white engraving images with OpenAI, or convert existing PNG artwork into SVG files sized for galvo laser software.</p>
+          <h1>Build laser-ready artwork, then turn it into clean SVG geometry.</h1>
+          <p class="hero-copy">Generate high-contrast black and white engraving art with OpenAI, optimize uploaded PNGs for marking, or convert existing artwork into SVG files sized for galvo laser software.</p>
+          <div class="hero-actions">
+            <button id="heroGeneratorBtn" class="primary-button hero-button" type="button">Build Engraving Image</button>
+            <button id="heroConverterBtn" class="hero-secondary" type="button">Convert PNG to SVG</button>
+          </div>
+          <div class="trust-row" aria-label="Workflow highlights">
+            <span>Black and white engraving prompts</span>
+            <span>DPI-aware SVG export</span>
+            <span>AI PNG optimization</span>
+          </div>
         </div>
       </section>
 
       <section class="dashboard-options" aria-label="App options">
         <button id="openGeneratorBtn" class="workflow-tile" type="button">
-          <span class="tile-icon" aria-hidden="true">✦</span>
+          <span class="tile-icon" aria-hidden="true">AI</span>
           <span>
             <strong>Build Galvo Black & White Images</strong>
             <small>Create high-contrast black and white laser engraving artwork from a prompt.</small>
@@ -26,7 +46,7 @@
         </button>
 
         <button id="openConverterBtn" class="workflow-tile" type="button">
-          <span class="tile-icon" aria-hidden="true">⇄</span>
+          <span class="tile-icon" aria-hidden="true">SVG</span>
           <span>
             <strong>Convert PNG Images to SVG</strong>
             <small>Trace PNG files into SVG with DPI, size, smoothing, and preview controls.</small>
