@@ -142,8 +142,33 @@
           </div>
 
           <div class="control-group">
+            <label for="engravingBackground">Tumbler / background</label>
+            <select id="engravingBackground">
+              <option value="dark">Dark powder coat: white engraving on black</option>
+              <option value="light">Light surface: black engraving on white</option>
+              <option value="auto">Let the prompt decide</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="engravingWrap">Artwork layout</label>
+            <select id="engravingWrap">
+              <option value="single">Single panel / centered artwork</option>
+              <option value="wrap">Full tumbler wrap with seamless edges</option>
+              <option value="seamless">Seamless panoramic wrap</option>
+            </select>
+          </div>
+
+          <div class="control-group">
             <label for="engravingSize">Image shape</label>
             <select id="engravingSize">
+              <option value="11x5.75in">Tumbler wrap 11 x 5.75 in</option>
+              <option value="11x5in">Tumbler wrap 11 x 5 in</option>
+              <option value="9.75x5.75in">Tumbler wrap 9.75 x 5.75 in</option>
+              <option value="8.5x5.5in">Tumbler wrap 8.5 x 5.5 in</option>
+              <option value="11.54x4in">Skinny tumbler wrap 11.54 x 4 in</option>
+              <option value="577:200">Wide wrap 577:200</option>
+              <option value="994:575">Wide wrap 994:575</option>
               <option value="1:1">Square 1:1</option>
               <option value="4:5">Portrait 4:5</option>
               <option value="2:3">Portrait 2:3</option>
@@ -177,6 +202,12 @@
             </label>
             <p id="engravingSizeHint" class="small-status">The AI generator will use the closest available image shape, while preserving your requested proportion in the prompt.</p>
           </div>
+
+          <label class="check-row generator-check">
+            <input id="rotaryCompensation" type="checkbox">
+            <span>Apply rotary width compensation guidance</span>
+          </label>
+          <p class="small-status">For full wraps, this asks the AI to compose for about 8-10% narrower generated width while keeping height unchanged, so the image can be stretched back to final width in laser software.</p>
 
           <button id="generateEngravingBtn" class="primary-button full-width" type="button">Generate Image</button>
           <p id="generatorStatus" class="small-status" aria-live="polite">Ready to generate.</p>
@@ -554,6 +585,6 @@
         window.openGalvoStudioView = openView;
       })();
     </script>
-    <script src="app.js?v=20260527-ai-backend"></script>
+    <script src="app.js?v=20260527-laser-gpt"></script>
   </body>
 </html>

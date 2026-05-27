@@ -20,20 +20,23 @@ const mimeTypes = {
 };
 
 const engravingInstructions = `
-Create a true black and white laser engraving image.
-The output must be suitable for galvo laser engraving and later PNG-to-SVG conversion.
-Use only pure black and pure white. Avoid gray shading, gradients, color, soft airbrush effects, photographic blur, shadows, and busy backgrounds.
-Use clean, high-contrast, readable shapes with crisp edges, strong silhouette separation, and engravable line spacing.
-Keep the main subject centered with clear negative space. Prefer vector-like line art, stencil-ready shapes, or bold mark/no-mark artwork.
+You are Laser Tumbler Wrap Designer, a specialized assistant for creating laser engraving artwork for powder-coated stainless steel tumblers.
+Always prioritize real-world laser engravability over artistic effects.
+Create true 1-bit black and white artwork only: pure black and pure white, no grayscale, no gray tones, no gradients, no blur, no soft shading, no color, no sepia, no photographic gray shading.
+Use high contrast, bold clean line art, strong silhouettes, controlled detail, clear negative space, realistic engraving-style line work, trace-friendly connected shapes, and crisp edges.
+For realistic images, simulate realism only with black-and-white engraving methods: contour lines, crosshatching, selective stippling, silhouettes, highlights, and negative space.
+Avoid fragile micro-details. Assume practical fiber laser details should be larger than about 0.05 mm to 0.08 mm unless the user provides a machine setting.
+Optimize for later PNG-to-SVG tracing in Inkscape, Illustrator, LightBurn, CorelDRAW, or similar software: clean outlines, minimal speckles, no fuzzy edges, no low-contrast texture, no thin broken lines.
 Do not add text unless the user explicitly asks for text.
 `.trim();
 
 const pngOptimizationInstructions = `
 Rebuild the provided PNG as optimized black and white galvo laser engraving artwork.
 Preserve the main subject and composition from the input image, but simplify it for reliable engraving.
-Convert color, photo tones, soft shadows, gradients, and gray areas into pure black and pure white mark/no-mark artwork.
-Use crisp contours, clean separated line work, strong contrast, and clear negative space.
-Avoid tiny noisy dots, muddy texture, blurry edges, gray shading, color, watermarks, mockup backgrounds, and unnecessary text.
+Convert color, photo tones, soft shadows, gradients, and gray areas into true 1-bit pure black and pure white mark/no-mark artwork.
+Use crisp contours, clean connected shapes, bold primary outlines, medium secondary detail lines, strong contrast, and clear negative space.
+Avoid tiny noisy dots, muddy texture, blurry edges, gray shading, color, watermarks, mockup backgrounds, anti-aliased gray edges, and unnecessary text.
+Keep details practical for fiber laser engraving and bitmap tracing; remove speckles and simplify fragile hairlines.
 The output should be a PNG that can be traced into a clean SVG for laser engraving.
 `.trim();
 
@@ -96,6 +99,53 @@ function getDetailInstruction(detail) {
   return details[detail] || details.balanced;
 }
 
+function getBackgroundInstruction(background) {
+  const backgrounds = {
+    dark: "Tumbler/background: dark powder-coated tumbler. Use a solid black background with white engraving lines. Black means powder coat remains; white means laser removes coating and reveals stainless steel.",
+    light: "Tumbler/background: light surface or standard black mark artwork. Use white background with black engraved marks and clean negative space.",
+    auto: "Tumbler/background: choose the most engravable black-and-white orientation for the user request. If it is a dark tumbler or full wrap, prefer black background with white engraving lines.",
+  };
+  return backgrounds[background] || backgrounds.dark;
+}
+
+function getWrapInstruction(wrap) {
+  if (wrap === "wrap" || wrap === "seamless") {
+    return [
+      "Layout: panoramic full tumbler wrap.",
+      "Make the left and right edges seamless or visually seamless.",
+      "Treat the left 10% and right 10% of the canvas as seam zones.",
+      "Keep faces, text, logos, animals, hands, weapons, vehicles, and main focal subjects out of the seam zones unless the user explicitly asks.",
+      "Use trees, smoke, grass, mountains, brick, waves, clouds, darkness, abstract texture, or background elements to hide and connect the seam.",
+      "Match edge density, line weight, brightness, and background texture from left to right.",
+      "Keep the primary subject in the central 60-70% of the design."
+    ].join(" ");
+  }
+
+  return "Layout: single panel or centered artwork with clean margins, strong focal readability, and enough negative space for engraving.";
+}
+
+function getRotaryCompensationInstruction(enabled, body) {
+  if (!enabled) return "";
+
+  const width = Number(body.physicalWidth);
+  const height = Number(body.physicalHeight);
+  const unit = body.physicalUnit || "in";
+  const sizeNote = width > 0 && height > 0
+    ? `True final size is ${width} x ${height} ${unit}; compose as if generated width is approximately ${formatNumber(width * 0.9)} to ${formatNumber(width * 0.92)} ${unit}, with height unchanged at ${height} ${unit}.`
+    : "Compose the artwork 8% to 10% narrower in width only while keeping height unchanged.";
+
+  return [
+    "Rotary tumbler width compensation: apply practical visual compensation for round tumbler engraving.",
+    sizeNote,
+    "The user will stretch only the width back to true final engraving size in laser software.",
+    "Do not reduce height. Keep vertical proportions and engraving detail stable."
+  ].join(" ");
+}
+
+function formatNumber(value) {
+  return Number(value.toFixed(3)).toString();
+}
+
 function parseDataUrlImage(dataUrl) {
   const match = /^data:(image\/(?:png|jpeg|jpg|webp));base64,(.+)$/i.exec(String(dataUrl || ""));
   if (!match) {
@@ -133,8 +183,12 @@ async function generateEngravingImage(body) {
     engravingInstructions,
     getStyleInstruction(body.style),
     getDetailInstruction(body.detail),
+    getBackgroundInstruction(body.background),
+    getWrapInstruction(body.wrap),
+    getRotaryCompensationInstruction(Boolean(body.rotaryCompensation), body),
     body.requestedSize ? `Requested output proportion: ${body.requestedSize}. Keep the artwork composed for this proportion, with enough margin for laser engraving.` : "",
     body.requestedRatio ? `Requested wide-to-tall ratio: ${body.requestedRatio}.` : "",
+    "DPI guidance: preserve aspect ratio and use enough pixel detail for 300 DPI minimum engraving prep; final imported physical size must be verified in laser software.",
     `User request: ${prompt}`,
   ].filter(Boolean).join("\n\n");
 

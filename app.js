@@ -23,12 +23,15 @@ const els = {
   engravingPrompt: document.querySelector("#engravingPrompt"),
   engravingStyle: document.querySelector("#engravingStyle"),
   engravingDetail: document.querySelector("#engravingDetail"),
+  engravingBackground: document.querySelector("#engravingBackground"),
+  engravingWrap: document.querySelector("#engravingWrap"),
   engravingSize: document.querySelector("#engravingSize"),
   customEngravingSize: document.querySelector("#customEngravingSize"),
   engravingCustomWidth: document.querySelector("#engravingCustomWidth"),
   engravingCustomHeight: document.querySelector("#engravingCustomHeight"),
   engravingCustomUnit: document.querySelector("#engravingCustomUnit"),
   engravingSizeHint: document.querySelector("#engravingSizeHint"),
+  rotaryCompensation: document.querySelector("#rotaryCompensation"),
   generateEngravingBtn: document.querySelector("#generateEngravingBtn"),
   generatorStatus: document.querySelector("#generatorStatus"),
   generatedPreview: document.querySelector("#generatedPreview"),
@@ -100,6 +103,13 @@ const els = {
 const controls = [els.mode, els.maxSize, els.dpi, els.physicalWidth, els.physicalHeight, els.colors, els.smoothness, els.photoContrast, els.edgeSensitivity, els.lineWeight, els.threshold, els.simplify, els.cornerSmoothing, els.minFeature, els.alpha, els.trim, els.background, els.invert];
 let renderTimer = 0;
 const apiBaseUrl = window.GALVO_API_BASE_URL || "";
+const engravingSizePresets = {
+  "11x5.75in": { width: 11, height: 5.75, description: "11 x 5.75 in tumbler wrap" },
+  "11x5in": { width: 11, height: 5, description: "11 x 5 in tumbler wrap" },
+  "9.75x5.75in": { width: 9.75, height: 5.75, description: "9.75 x 5.75 in tumbler wrap" },
+  "8.5x5.5in": { width: 8.5, height: 5.5, description: "8.5 x 5.5 in tumbler wrap" },
+  "11.54x4in": { width: 11.54, height: 4, description: "11.54 x 4 in skinny tumbler wrap" },
+};
 
 function on(element, eventName, handler) {
   if (element) element.addEventListener(eventName, handler);
@@ -474,9 +484,15 @@ async function generateEngravingImage() {
       prompt,
       style: els.engravingStyle.value,
       detail: els.engravingDetail.value,
+      background: els.engravingBackground.value,
+      wrap: els.engravingWrap.value,
+      rotaryCompensation: els.rotaryCompensation.checked,
       size: sizeSettings.apiSize,
       requestedSize: sizeSettings.description,
       requestedRatio: sizeSettings.ratio,
+      physicalWidth: sizeSettings.physicalWidth || null,
+      physicalHeight: sizeSettings.physicalHeight || null,
+      physicalUnit: sizeSettings.physicalUnit || null,
     });
 
     if (!payload.image) {
@@ -550,6 +566,20 @@ function updateEngravingSizeControls() {
 function getEngravingSizeSettings(options = {}) {
   const selected = els.engravingSize.value;
   if (selected !== "custom") {
+    const preset = engravingSizePresets[selected];
+    if (preset) {
+      const ratio = preset.width / preset.height;
+      return {
+        valid: true,
+        ratio,
+        apiSize: getOpenAiSizeForRatio(ratio),
+        description: preset.description,
+        physicalWidth: preset.width,
+        physicalHeight: preset.height,
+        physicalUnit: "in",
+      };
+    }
+
     const ratio = parseRatio(selected);
     return {
       valid: true,
@@ -588,6 +618,9 @@ function getEngravingSizeSettings(options = {}) {
     description: unit === "ratio"
       ? `${formatSliderNumber(width)}:${formatSliderNumber(height)} custom ratio`
       : `${formatSliderNumber(width)} x ${formatSliderNumber(height)} ${unitLabel}`,
+    physicalWidth: unit === "ratio" ? null : width,
+    physicalHeight: unit === "ratio" ? null : height,
+    physicalUnit: unit === "ratio" ? null : unit,
   };
 }
 
