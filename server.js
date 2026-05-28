@@ -7,7 +7,7 @@ loadEnvFile(path.join(root, ".env"));
 
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "0.0.0.0";
-const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://127.0.0.1:4173,http://localhost:4173,https://guido9800.github.io")
   .split(",")
   .map((origin) => origin.trim())
@@ -24,26 +24,13 @@ const mimeTypes = {
   ".ico": "image/x-icon",
 };
 
-const engravingInstructions = `
-You are Laser Tumbler Wrap Designer, a specialized assistant for creating laser engraving artwork for powder-coated stainless steel tumblers.
-Always prioritize real-world laser engravability over artistic effects.
-Create true 1-bit black and white artwork only: pure black and pure white, no grayscale, no gray tones, no gradients, no blur, no soft shading, no color, no sepia, no photographic gray shading.
-Use high contrast, bold clean line art, strong silhouettes, controlled detail, clear negative space, realistic engraving-style line work, trace-friendly connected shapes, and crisp edges.
-For realistic images, simulate realism only with black-and-white engraving methods: contour lines, crosshatching, selective stippling, silhouettes, highlights, and negative space.
-Avoid fragile micro-details. Assume practical fiber laser details should be larger than about 0.05 mm to 0.08 mm unless the user provides a machine setting.
-Optimize for later PNG-to-SVG tracing in Inkscape, Illustrator, LightBurn, CorelDRAW, or similar software: clean outlines, minimal speckles, no fuzzy edges, no low-contrast texture, no thin broken lines.
-Do not add text unless the user explicitly asks for text.
-`.trim();
+const engravingInstructions = loadPromptFile("prompts/laser-tumbler-wrap-designer.md", `
+You are Laser Tumbler Wrap Designer. Create true 1-bit black-and-white, high-contrast, laser engraving ready artwork with bold clean line work, trace-friendly shapes, no grayscale, no gradients, and no fragile micro-details.
+`);
 
-const pngOptimizationInstructions = `
-Rebuild the provided PNG as optimized black and white galvo laser engraving artwork.
-Preserve the main subject and composition from the input image, but simplify it for reliable engraving.
-Convert color, photo tones, soft shadows, gradients, and gray areas into true 1-bit pure black and pure white mark/no-mark artwork.
-Use crisp contours, clean connected shapes, bold primary outlines, medium secondary detail lines, strong contrast, and clear negative space.
-Avoid tiny noisy dots, muddy texture, blurry edges, gray shading, color, watermarks, mockup backgrounds, anti-aliased gray edges, and unnecessary text.
-Keep details practical for fiber laser engraving and bitmap tracing; remove speckles and simplify fragile hairlines.
-The output should be a PNG that can be traced into a clean SVG for laser engraving.
-`.trim();
+const pngOptimizationInstructions = loadPromptFile("prompts/png-optimization.md", `
+Rebuild the provided PNG as optimized true black-and-white galvo laser engraving artwork with clean trace-friendly edges, strong contrast, no grayscale, no color, and no fragile noise.
+`);
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -56,6 +43,16 @@ function loadEnvFile(filePath) {
     const key = trimmed.slice(0, equalsIndex).trim();
     const value = trimmed.slice(equalsIndex + 1).trim().replace(/^["']|["']$/g, "");
     process.env[key] = value;
+  }
+}
+
+function loadPromptFile(relativePath, fallback) {
+  try {
+    const promptPath = path.join(root, relativePath);
+    const prompt = fs.readFileSync(promptPath, "utf8").trim();
+    return prompt || fallback.trim();
+  } catch {
+    return fallback.trim();
   }
 }
 
@@ -198,6 +195,143 @@ function getRotaryCompensationInstruction(enabled, body) {
   ].join(" ");
 }
 
+function getOpenAiGenerationSize(body) {
+  if (!isGptImage2Model()) {
+    return getLegacyOpenAiSize(body.size);
+  }
+
+  const physical = getPhysicalDimensionsInches(body);
+  if (physical) {
+    return fitGptImage2Size(physical.width * 300, physical.height * 300);
+  }
+
+  const ratio = getRequestedRatio(body) || getRatioFromLegacySize(body.size) || 1;
+  const longEdge = 2560;
+  const width = ratio >= 1 ? longEdge : longEdge * ratio;
+  const height = ratio >= 1 ? longEdge / ratio : longEdge;
+  return fitGptImage2Size(width, height);
+}
+
+function getOpenAiEditSize(body) {
+  if (isGptImage2Model()) {
+    const ratio = getRatioFromLegacySize(body.size) || 1;
+    const longEdge = 2048;
+    const width = ratio >= 1 ? longEdge : longEdge * ratio;
+    const height = ratio >= 1 ? longEdge / ratio : longEdge;
+    return fitGptImage2Size(width, height);
+  }
+
+  return getLegacyOpenAiSize(body.size);
+}
+
+function isGptImage2Model() {
+  return /^gpt-image-2(?:$|-)/i.test(imageModel);
+}
+
+function getLegacyOpenAiSize(size) {
+  return ["1024x1024", "1536x1024", "1024x1536"].includes(size) ? size : "1024x1024";
+}
+
+function getRatioFromLegacySize(size) {
+  const match = /^(\d+)x(\d+)$/i.exec(String(size || ""));
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  return width > 0 && height > 0 ? width / height : null;
+}
+
+function getRequestedRatio(body) {
+  const ratio = Number(body.requestedRatio);
+  if (ratio > 0) return ratio;
+
+  const size = String(body.requestedSize || "");
+  const ratioMatch = /(\d+(?:\.\d+)?)\s*[:x]\s*(\d+(?:\.\d+)?)/i.exec(size);
+  if (!ratioMatch) return null;
+  const width = Number(ratioMatch[1]);
+  const height = Number(ratioMatch[2]);
+  return width > 0 && height > 0 ? width / height : null;
+}
+
+function getPhysicalDimensionsInches(body) {
+  const width = Number(body.physicalWidth);
+  const height = Number(body.physicalHeight);
+  if (!(width > 0) || !(height > 0)) return null;
+
+  const unit = String(body.physicalUnit || "in").toLowerCase();
+  const multipliers = {
+    in: 1,
+    inch: 1,
+    inches: 1,
+    mm: 1 / 25.4,
+    millimeter: 1 / 25.4,
+    millimeters: 1 / 25.4,
+    cm: 1 / 2.54,
+    centimeter: 1 / 2.54,
+    centimeters: 1 / 2.54,
+  };
+  const multiplier = multipliers[unit] || 1;
+  return { width: width * multiplier, height: height * multiplier };
+}
+
+function fitGptImage2Size(targetWidth, targetHeight) {
+  const maxEdge = 3840;
+  const minPixels = 655360;
+  const maxPixels = 8294400;
+  let width = Math.max(16, Number(targetWidth) || 1024);
+  let height = Math.max(16, Number(targetHeight) || 1024);
+
+  let ratio = width / height;
+  if (ratio > 3) {
+    ratio = 3;
+    height = width / ratio;
+  } else if (ratio < 1 / 3) {
+    ratio = 1 / 3;
+    width = height * ratio;
+  }
+
+  const edgeScale = Math.min(1, maxEdge / Math.max(width, height));
+  width *= edgeScale;
+  height *= edgeScale;
+
+  const totalPixels = width * height;
+  if (totalPixels > maxPixels) {
+    const scale = Math.sqrt(maxPixels / totalPixels);
+    width *= scale;
+    height *= scale;
+  } else if (totalPixels < minPixels) {
+    const scale = Math.sqrt(minPixels / totalPixels);
+    width *= scale;
+    height *= scale;
+  }
+
+  width = roundToMultipleOf16(width);
+  height = roundToMultipleOf16(height);
+
+  while (width * height > maxPixels || width > maxEdge || height > maxEdge || Math.max(width, height) / Math.min(width, height) > 3) {
+    if (width >= height) {
+      width -= 16;
+    } else {
+      height -= 16;
+    }
+  }
+
+  while (width * height < minPixels) {
+    if (width <= height && width + 16 <= maxEdge && (height / (width + 16)) <= 3) {
+      width += 16;
+    } else if (height + 16 <= maxEdge && ((height + 16) / width) <= 3) {
+      height += 16;
+    } else {
+      break;
+    }
+  }
+
+  return `${width}x${height}`;
+}
+
+function roundToMultipleOf16(value) {
+  return Math.max(16, Math.round(value / 16) * 16);
+}
+
 function formatNumber(value) {
   return Number(value.toFixed(3)).toString();
 }
@@ -231,9 +365,7 @@ async function generateEngravingImage(body) {
     throw error;
   }
 
-  const size = ["1024x1024", "1536x1024", "1024x1536"].includes(body.size)
-    ? body.size
-    : "1024x1024";
+  const size = getOpenAiGenerationSize(body);
 
   const fullPrompt = [
     engravingInstructions,
@@ -247,6 +379,7 @@ async function generateEngravingImage(body) {
     getRotaryCompensationInstruction(Boolean(body.rotaryCompensation), body),
     body.requestedSize ? `Requested output proportion: ${body.requestedSize}. Keep the artwork composed for this proportion, with enough margin for laser engraving.` : "",
     body.requestedRatio ? `Requested wide-to-tall ratio: ${body.requestedRatio}.` : "",
+    `Native API output size requested: ${size}.`,
     "DPI guidance: preserve aspect ratio and use enough pixel detail for 300 DPI minimum engraving prep; final imported physical size must be verified in laser software.",
     `User request: ${prompt}`,
   ].filter(Boolean).join("\n\n");
@@ -305,9 +438,7 @@ async function optimizePngForEngraving(body) {
     throw error;
   }
 
-  const size = ["1024x1024", "1536x1024", "1024x1536"].includes(body.size)
-    ? body.size
-    : "1024x1024";
+  const size = getOpenAiEditSize(body);
 
   const formData = new FormData();
   formData.set("model", imageModel);

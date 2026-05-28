@@ -732,7 +732,7 @@ function updateEngravingSizeControls() {
   const settings = getEngravingSizeSettings({ allowEmpty: true });
   if (els.engravingSizeHint) {
     els.engravingSizeHint.textContent = settings.valid
-      ? `${settings.description}. Generation uses ${settings.apiSize}, the closest available image shape.`
+      ? `${settings.description}. GPT Image 2 uses a higher-resolution native size when available; older models use ${settings.apiSize}.`
       : "Enter a wide and tall value greater than 0.";
   }
 }
