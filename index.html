@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PNG to SVG Converter</title>
-    <link rel="stylesheet" href="styles.css?v=20260528-progress-fonts">
+    <link rel="stylesheet" href="styles.css?v=20260529-refine-image">
   </head>
   <body>
     <main id="dashboardView" class="dashboard-shell">
@@ -275,6 +275,16 @@
             <button id="sendGeneratedToConverterPreviewBtn" class="primary-button" type="button" disabled>
               Send Image to PNG to SVG Converter
             </button>
+          </div>
+          <div class="refine-card">
+            <label for="refinePrompt">Ask AI to revise this image</label>
+            <textarea id="refinePrompt" class="prompt-box compact" spellcheck="true" placeholder="Example: make the lines bolder, remove small speckles, make the dog more realistic, keep the same black background and white engraving lines"></textarea>
+            <div class="refine-actions">
+              <button id="refineGeneratedBtn" class="primary-button" type="button" disabled>
+                Improve Current Image
+              </button>
+              <p id="refineStatus" class="small-status" aria-live="polite">Generate an image first, then ask for changes here.</p>
+            </div>
           </div>
         </section>
       </section>

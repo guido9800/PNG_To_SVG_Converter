@@ -74,9 +74,10 @@ function sendJson(response, statusCode, payload) {
 function readRequestJson(request) {
   return new Promise((resolve, reject) => {
     let body = "";
+    const maxRequestBytes = 80 * 1024 * 1024;
     request.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 100000) {
+      if (body.length > maxRequestBytes) {
         reject(new Error("Request is too large."));
         request.destroy();
       }
@@ -480,6 +481,88 @@ async function optimizePngForEngraving(body) {
   return { image, size, model: imageModel };
 }
 
+async function refineEngravingImage(body) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || apiKey.includes("replace_with_your_new_openai_api_key")) {
+    const error = new Error("OPENAI_API_KEY is not set on the server. Add your new key to the local .env file.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const source = parseDataUrlImage(body.image);
+  if (source.buffer.length > 50 * 1024 * 1024) {
+    const error = new Error("Image must be smaller than 50MB.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const changePrompt = String(body.prompt || "").trim();
+  if (!changePrompt) {
+    const error = new Error("Revision instructions are required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const size = getOpenAiGenerationSize(body);
+  const fullPrompt = [
+    engravingInstructions,
+    "Task: revise the provided existing image instead of starting over.",
+    "Preserve the main composition, subject identity, canvas ratio, black-and-white laser engraving style, and SVG trace-friendly structure unless the user specifically asks to change them.",
+    "Apply only the requested changes. Keep the output pure black and white with no grayscale, no gradients, no soft shading, no blur, and no color.",
+    getStyleInstruction(body.style),
+    getDetailInstruction(body.detail),
+    getLineWeightInstruction(body.lineWeight),
+    getCleanupInstruction(body.cleanup),
+    getResolutionInstruction(body.upscale),
+    getBackgroundInstruction(body.background),
+    getWrapInstruction(body.wrap),
+    getRotaryCompensationInstruction(Boolean(body.rotaryCompensation), body),
+    body.requestedSize ? `Requested output proportion: ${body.requestedSize}. Preserve this proportion.` : "",
+    body.requestedRatio ? `Requested wide-to-tall ratio: ${body.requestedRatio}.` : "",
+    body.originalPrompt ? `Original generation request: ${String(body.originalPrompt).trim()}` : "",
+    `Revision request: ${changePrompt}`,
+  ].filter(Boolean).join("\n\n");
+
+  const formData = new FormData();
+  formData.set("model", imageModel);
+  formData.set("prompt", fullPrompt);
+  formData.set("size", size);
+  formData.set("quality", "high");
+  formData.set("n", "1");
+  formData.set("image", new Blob([source.buffer], { type: source.mimeType }), "current-engraving.png");
+
+  const openAiResponse = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: formData,
+  });
+
+  const rawPayload = await openAiResponse.text();
+  const payload = rawPayload ? JSON.parse(rawPayload) : {};
+  if (!openAiResponse.ok) {
+    const error = new Error(payload.error?.message || "OpenAI image revision failed.");
+    error.statusCode = openAiResponse.status;
+    throw error;
+  }
+
+  let image = payload.data?.[0]?.b64_json;
+  if (!image && payload.data?.[0]?.url) {
+    const imageResponse = await fetch(payload.data[0].url);
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    image = Buffer.from(arrayBuffer).toString("base64");
+  }
+
+  if (!image) {
+    const error = new Error("OpenAI did not return revised image data.");
+    error.statusCode = 502;
+    throw error;
+  }
+
+  return { image, size, model: imageModel };
+}
+
 function serveStatic(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
   const requestedPath = decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname);
@@ -525,6 +608,13 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "POST" && request.url === "/api/optimize-png") {
       const body = await readRequestJson(request);
       const result = await optimizePngForEngraving(body);
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === "POST" && request.url === "/api/refine-engraving") {
+      const body = await readRequestJson(request);
+      const result = await refineEngravingImage(body);
       sendJson(response, 200, result);
       return;
     }

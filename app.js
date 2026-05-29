@@ -40,6 +40,9 @@ const els = {
   generatorStatus: document.querySelector("#generatorStatus"),
   generatedPreview: document.querySelector("#generatedPreview"),
   generatedMeta: document.querySelector("#generatedMeta"),
+  refinePrompt: document.querySelector("#refinePrompt"),
+  refineGeneratedBtn: document.querySelector("#refineGeneratedBtn"),
+  refineStatus: document.querySelector("#refineStatus"),
   downloadGeneratedBtn: document.querySelector("#downloadGeneratedBtn"),
   sendGeneratedToConverterBtn: document.querySelector("#sendGeneratedToConverterBtn"),
   sendGeneratedToConverterPreviewBtn: document.querySelector("#sendGeneratedToConverterPreviewBtn"),
@@ -258,6 +261,7 @@ on(els.heroGeneratorBtn, "click", () => showView("generator"));
 on(els.heroConverterBtn, "click", () => showView("converter"));
 els.backHomeButtons.forEach((button) => on(button, "click", () => showView("dashboard")));
 on(els.generateEngravingBtn, "click", generateEngravingImage);
+on(els.refineGeneratedBtn, "click", refineGeneratedImage);
 on(els.downloadGeneratedBtn, "click", downloadGeneratedPng);
 on(els.sendGeneratedToConverterBtn, "click", sendGeneratedToConverter);
 on(els.sendGeneratedToConverterPreviewBtn, "click", sendGeneratedToConverter);
@@ -486,6 +490,7 @@ async function generateEngravingImage() {
   hideGeneratorError();
   els.generateEngravingBtn.disabled = true;
   els.downloadGeneratedBtn.disabled = true;
+  els.refineGeneratedBtn.disabled = true;
   els.sendGeneratedToConverterBtn.disabled = true;
   els.sendGeneratedToConverterPreviewBtn.disabled = true;
   startGenerationStatus();
@@ -522,14 +527,8 @@ async function generateEngravingImage() {
       background: els.engravingBackground.value,
     });
 
-    state.generatedPng = processed.dataUrl;
-    els.generatedPreview.classList.remove("empty");
-    els.generatedPreview.innerHTML = `<img class="generated-image" alt="Generated black and white laser engraving artwork" src="${state.generatedPng}">`;
-    els.generatedMeta.textContent = `${sizeSettings.description}, ${payload.size} source, ${processed.width} x ${processed.height} final PNG`;
+    setGeneratedImage(processed, `${sizeSettings.description}, ${payload.size} source, ${processed.width} x ${processed.height} final PNG`);
     updateGenerationStatus("Image generated and cleaned for laser prep.");
-    els.downloadGeneratedBtn.disabled = false;
-    els.sendGeneratedToConverterBtn.disabled = false;
-    els.sendGeneratedToConverterPreviewBtn.disabled = false;
   } catch (error) {
     updateGenerationStatus(error.message || "Image generation failed.", true);
     console.error(error);
@@ -539,8 +538,105 @@ async function generateEngravingImage() {
   }
 }
 
-function startGenerationStatus() {
-  const messages = [
+async function refineGeneratedImage() {
+  if (!state.generatedPng) return;
+
+  const changePrompt = els.refinePrompt.value.trim();
+  if (!changePrompt) {
+    showGeneratorError("Describe what you want changed in the current image.");
+    els.refinePrompt.focus();
+    return;
+  }
+
+  const sizeSettings = getEngravingSizeSettings();
+  if (!sizeSettings.valid) {
+    showGeneratorError(sizeSettings.error);
+    return;
+  }
+
+  hideGeneratorError();
+  els.generateEngravingBtn.disabled = true;
+  els.refineGeneratedBtn.disabled = true;
+  els.downloadGeneratedBtn.disabled = true;
+  els.sendGeneratedToConverterBtn.disabled = true;
+  els.sendGeneratedToConverterPreviewBtn.disabled = true;
+  els.refineStatus.textContent = "Sending current image and requested changes to OpenAI...";
+  startGenerationStatus([
+    "Sending current image and revision request to OpenAI...",
+    "OpenAI is revising the existing composition...",
+    "Preserving the laser engraving rules while applying your changes...",
+    "Preparing the revised PNG for final cleanup..."
+  ]);
+
+  try {
+    const payload = await postApiJson("/api/refine-engraving", {
+      image: state.generatedPng,
+      prompt: changePrompt,
+      originalPrompt: els.engravingPrompt.value.trim(),
+      style: els.engravingStyle.value,
+      detail: els.engravingDetail.value,
+      lineWeight: els.engravingLineWeight.value,
+      cleanup: els.engravingCleanup.value,
+      upscale: els.engravingUpscale.value,
+      background: els.engravingBackground.value,
+      wrap: els.engravingWrap.value,
+      rotaryCompensation: els.rotaryCompensation.checked,
+      size: sizeSettings.apiSize,
+      requestedSize: sizeSettings.description,
+      requestedRatio: sizeSettings.ratio,
+      physicalWidth: sizeSettings.physicalWidth || null,
+      physicalHeight: sizeSettings.physicalHeight || null,
+      physicalUnit: sizeSettings.physicalUnit || null,
+    });
+
+    if (!payload.image) {
+      throw new Error("The image API did not return revised image data.");
+    }
+
+    updateGenerationStatus("OpenAI returned the revised image. Applying final laser cleanup...", false, true);
+    const revisedDataUrl = `data:image/png;base64,${payload.image}`;
+    const processed = await enhanceGeneratedImage(revisedDataUrl, {
+      upscale: Number(els.engravingUpscale.value) || 1,
+      cleanup: els.engravingCleanup.value,
+      lineWeight: els.engravingLineWeight.value,
+      background: els.engravingBackground.value,
+    });
+
+    setGeneratedImage(processed, `Revised image, ${payload.size} source, ${processed.width} x ${processed.height} final PNG`);
+    els.refineStatus.textContent = "Revision complete. You can ask for another change or send it to the SVG converter.";
+    updateGenerationStatus("Image revised and cleaned for laser prep.");
+  } catch (error) {
+    updateGenerationStatus(error.message || "Image revision failed.", true);
+    els.refineStatus.textContent = error.message || "Image revision failed.";
+    console.error(error);
+  } finally {
+    stopGenerationStatus();
+    els.generateEngravingBtn.disabled = false;
+    updateGeneratedActionState();
+  }
+}
+
+function setGeneratedImage(processed, metaText) {
+  state.generatedPng = processed.dataUrl;
+  els.generatedPreview.classList.remove("empty");
+  els.generatedPreview.innerHTML = `<img class="generated-image" alt="Generated black and white laser engraving artwork" src="${state.generatedPng}">`;
+  els.generatedMeta.textContent = metaText;
+  if (els.refineStatus) {
+    els.refineStatus.textContent = "Ask for a change below, or send this image to the SVG converter.";
+  }
+  updateGeneratedActionState();
+}
+
+function updateGeneratedActionState() {
+  const hasImage = Boolean(state.generatedPng);
+  els.downloadGeneratedBtn.disabled = !hasImage;
+  els.refineGeneratedBtn.disabled = !hasImage;
+  els.sendGeneratedToConverterBtn.disabled = !hasImage;
+  els.sendGeneratedToConverterPreviewBtn.disabled = !hasImage;
+}
+
+function startGenerationStatus(customMessages) {
+  const messages = customMessages || [
     "Sending laser engraving prompt to OpenAI...",
     "OpenAI is building the black and white composition...",
     "Still working. Full-wrap and high-detail images can take a little longer...",
