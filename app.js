@@ -513,7 +513,7 @@ async function generateEngravingImage() {
       throw new Error("The image API did not return image data.");
     }
 
-    updateGenerationStatus("OpenAI returned the base image. Applying final laser cleanup...");
+    updateGenerationStatus("OpenAI returned the base image. Applying final laser cleanup...", false, true);
     const generatedDataUrl = `data:image/png;base64,${payload.image}`;
     const processed = await enhanceGeneratedImage(generatedDataUrl, {
       upscale: Number(els.engravingUpscale.value) || 1,
@@ -548,20 +548,23 @@ function startGenerationStatus() {
     "Preparing the final PNG for laser workflow..."
   ];
   let index = 0;
-  updateGenerationStatus(messages[index]);
+  updateGenerationStatus(messages[index], false, true);
   clearInterval(generationStatusTimer);
   generationStatusTimer = setInterval(() => {
     index = Math.min(index + 1, messages.length - 1);
-    updateGenerationStatus(messages[index]);
+    updateGenerationStatus(messages[index], false, true);
   }, 4500);
 }
 
 function stopGenerationStatus() {
   clearInterval(generationStatusTimer);
   generationStatusTimer = 0;
+  if (els.generatorProgress) {
+    els.generatorProgress.classList.remove("is-active");
+  }
 }
 
-function updateGenerationStatus(message, isError = false) {
+function updateGenerationStatus(message, isError = false, isActive = false) {
   if (isError) {
     if (els.generatorProgress) els.generatorProgress.hidden = true;
     showGeneratorError(message);
@@ -572,6 +575,7 @@ function updateGenerationStatus(message, isError = false) {
   if (!els.generatorProgress) return;
   els.generatorProgress.hidden = false;
   els.generatorProgress.classList.remove("error");
+  els.generatorProgress.classList.toggle("is-active", Boolean(isActive));
   const label = els.generatorProgress.querySelector("span");
   if (label) label.textContent = message;
 }

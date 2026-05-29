@@ -671,6 +671,7 @@ input[type="range"] {
 
 .status-progress::before {
   content: "";
+  display: none;
   width: 100%;
   height: 5px;
   overflow: hidden;
@@ -680,6 +681,10 @@ input[type="range"] {
     rgba(18, 108, 90, 0.12);
   background-size: 45% 100%, 100% 100%;
   background-repeat: no-repeat;
+}
+
+.status-progress.is-active::before {
+  display: block;
   animation: statusSweep 1.2s linear infinite;
 }
 
@@ -690,6 +695,7 @@ input[type="range"] {
 }
 
 .status-progress.error::before {
+  display: block;
   animation: none;
   background: rgba(182, 91, 51, 0.5);
 }
